@@ -1,0 +1,149 @@
+PROJECT NAME: readstack
+
+====================================== 1. PRODUCT OVERVIEW
+======================================
+
+Product Vision: A minimal CLI tool that converts a Substack article URL
+into a MOBI file and sends it to a Kindle device via email within
+seconds.
+
+Experience Goal: Paste URL → Press Enter → Article appears on Kindle
+
+Constraints: - No UI - No automation (V1) - No hosting - No
+persistence - Stateless execution
+
+====================================== 2. TARGET USER
+======================================
+
+Primary user: - Substack reader - Uses Kindle for long-form reading -
+Comfortable with CLI tools - Subscriber to authors
+
+====================================== 3. PROBLEM STATEMENT
+======================================
+
+High-quality independent writing exists on Substack. Kindle is superior
+for long-form reading. There is no seamless method to send Substack
+articles to older Kindle devices requiring MOBI format.
+
+Manual workflows are friction-heavy and slow.
+
+====================================== 4. SUCCESS CRITERIA
+======================================
+
+The system is successful if: - A URL can be pasted into the CLI - A
+valid .mobi file is generated - The file is emailed to Kindle - The
+article appears within ~60 seconds - Images are preserved - Full article
+renders correctly
+
+====================================== 5. NON-GOALS (CRITICAL)
+======================================
+
+-   No web app
+-   No automation
+-   No multi-user system
+-   No database
+-   No cloud deployment
+-   No Substack API integration
+-   No bundling
+-   No authentication system
+-   No UI
+
+This is a stateless local utility.
+
+====================================== 6. SYSTEM ARCHITECTURE
+======================================
+
+Execution Flow:
+
+User ↓ CLI (Java) ↓ HTTP Fetch (Substack Article) ↓ Save HTML locally ↓
+Calibre CLI (ebook-convert) ↓ Generate MOBI ↓ SMTP Email (Gmail) ↓
+Kindle Device
+
+All execution occurs locally.
+
+====================================== 7. SYSTEM COMPONENTS
+======================================
+
+1.  URL Input
+    -   CLI argument
+    -   Basic validation
+2.  HTML Fetcher
+    -   HTTP GET request
+    -   Save raw HTML locally
+    -   Assumes subscriber access
+3.  Conversion Engine
+    -   Uses: ebook-convert input.html output.mobi
+    -   Handles formatting and images
+    -   Delegates complexity to Calibre
+4.  Email Sender
+    -   Gmail SMTP
+    -   App password authentication
+    -   TLS on port 587
+    -   Attach .mobi file
+
+====================================== 8. EXTERNAL DEPENDENCIES
+======================================
+
+-   Java 17+
+-   Calibre installed (ebook-convert in PATH)
+-   Gmail account with app password
+-   Kindle email configured and approved
+
+====================================== 9. ENGINEERING SPECIFICATION
+======================================
+
+Language: Java
+
+Required capabilities: - HttpClient - ProcessBuilder - File IO - SMTP
+(Jakarta Mail)
+
+No frameworks. No Spring. No database.
+
+====================================== 10. DIRECTORY STRUCTURE (MINIMAL)
+======================================
+
+/readstack SubstackToKindle.java jakarta.mail.jar activation.jar
+
+Temporary files: - article.html - article.mobi
+
+====================================== 11. SECURITY NOTES
+======================================
+
+V1: - Gmail app password stored in plaintext - No encryption
+
+Future improvement: - Use environment variables - Secure credential
+storage
+
+====================================== 12. PERFORMANCE EXPECTATIONS
+======================================
+
+HTTP fetch: < 2 seconds Conversion: 5–20 seconds Email send: < 3 seconds
+Kindle delivery: 30–60 seconds
+
+Total: under 1 minute
+
+====================================== 13. FUTURE ROADMAP
+======================================
+
+Phase 2: - Gmail automation - HTML cleanup - CLI flags - Auto-delete
+temp files
+
+Phase 3: - Article bundling - Daily digest mode - Metadata extraction
+
+Phase 4: - SaaS version - Multi-user system - Hosted backend - Stripe
+billing
+
+====================================== 14. DESIGN PRINCIPLES
+======================================
+
+1.  Completion > Elegance
+2.  Minimalism > Extensibility
+3.  Delegation > Reinvention
+4.  Statelessness > Persistence
+5.  CLI > UI
+
+====================================== 15. DEFINITION OF DONE
+======================================
+
+Done when: - URL passed - .mobi generated - Email sent - Appears on
+Kindle - Images visible - No manual steps beyond command

@@ -1,0 +1,4 @@
+#!/bin/bash
+cd "$(dirname "$0")"
+javac -q Readstack.java 2>/dev/null || true
+exec java Readstack "$@"
