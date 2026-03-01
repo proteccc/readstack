@@ -9,10 +9,20 @@ import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Readstack: CLI tool that fetches a Substack article URL, extracts the content,
+ * downloads images locally, cleans HTML/URLs, and converts to MOBI for Kindle.
+ */
 public class Readstack {
 
+    /**
+     * Entry point. Expects one argument: a Substack article URL.
+     * Fetches the page, extracts article body, prepares HTML for ebook conversion,
+     * saves to articles/ folder, and converts to MOBI via Calibre's ebook-convert.
+     */
     public static void main(String[] args) throws Exception {
 
+        // Validate exactly one URL argument
         if (args.length != 1) {
             System.out.println("Usage: java Readstack <substack-url>");
             return;
@@ -20,13 +30,14 @@ public class Readstack {
 
         String url = args[0];
 
+        // Fetch the page; open.substack.com often returns a redirect body, so follow it
         String html = downloadHtml(url);
-        // If we got a redirect page body (e.g. open.substack.com -> publication.substack.com), follow it
         String redirectUrl = extractRedirectUrl(html);
         if (redirectUrl != null) {
             html = downloadHtml(redirectUrl);
         }
 
+        // Derive output filename from article title, or URL slug, or "article"
         String title = extractTitle(html);
         String baseName = sanitizeFilename(title);
         if (baseName.isEmpty()) {
@@ -36,12 +47,13 @@ public class Readstack {
             baseName = "article";
         }
 
+        // Create articles/ directory and paths for HTML and MOBI output
         Path articlesDir = Path.of("articles");
         Files.createDirectories(articlesDir);
-
         Path htmlPath = articlesDir.resolve(baseName + ".html");
         Path mobiPath = articlesDir.resolve(baseName + ".mobi");
 
+        // Extract article body, wrap in minimal HTML, then run full ebook prep pipeline
         String effectiveUrl = redirectUrl != null ? redirectUrl : url;
         String body = extractArticleBody(html);
         html = buildMinimalHtml(title.isEmpty() ? "Article" : title, body, getBaseUrl(effectiveUrl));
@@ -49,12 +61,17 @@ public class Readstack {
         Files.createDirectories(articleImagesDir);
         html = prepareHtmlForEbook(html, effectiveUrl, articlesDir, baseName);
 
+        // Write prepared HTML and convert to MOBI via Calibre
         Files.writeString(htmlPath, html);
         convertToMobi(htmlPath.toString(), mobiPath.toString());
 
         System.out.println("Conversion complete: " + mobiPath);
     }
 
+    /**
+     * Fetches the raw HTML of the given URL via HTTP GET.
+     * Uses HttpClient with redirect following enabled.
+     */
     private static String downloadHtml(String url) throws Exception {
         System.out.println("Downloading article...");
 
@@ -73,7 +90,10 @@ public class Readstack {
         return response.body();
     }
 
-    /** If the response is a redirect page ("Found. Redirecting to ..."), return the target URL; else null. */
+    /**
+     * If the response body is a redirect page (e.g. "Found. Redirecting to https://..."),
+     * parses and returns the target URL. Otherwise returns null.
+     */
     private static String extractRedirectUrl(String body) {
         if (body == null || body.length() < 50) {
             return null;
@@ -93,7 +113,10 @@ public class Readstack {
         return null;
     }
 
-    /** Extract a slug from a Substack article URL (e.g. /p/slug or /pub/author/p/slug) for fallback filename. */
+    /**
+     * Extracts the article slug from a Substack URL (e.g. /p/slug or /pub/author/p/slug).
+     * Used as fallback filename when the page title cannot be extracted.
+     */
     private static String slugFromUrl(String url) {
         if (url == null) {
             return "";
@@ -103,12 +126,16 @@ public class Readstack {
         return m.find() ? m.group(1).trim() : "";
     }
 
-    /** Extracts the main article content from a full Substack page so we don't convert nav, scripts, URLs. */
+    /**
+     * Extracts the main article content from a full Substack page.
+     * Tries &lt;article&gt;, then divs with content classes, then &lt;body&gt;.
+     * Returns only the article body so we don't convert nav, scripts, or page chrome.
+     */
     private static String extractArticleBody(String html) {
         if (html == null) {
             return "";
         }
-        // Try <article>...</article> first (Substack and many sites use it)
+        // Try <article>...</article> first; use depth counting to handle nested articles
         int articleStart = html.indexOf("<article");
         if (articleStart >= 0) {
             int contentStart = html.indexOf(">", articleStart) + 1;
@@ -130,7 +157,7 @@ public class Readstack {
                 }
             }
         }
-        // Try div with common content class names (Substack uses various)
+        // Try div with common content class names; Substack uses various conventions
         String[] contentClassPatterns = {
             "available-content", "post-content", "body-markup", "markup", "entry-content", "article-body"
         };
@@ -174,7 +201,10 @@ public class Readstack {
         return html;
     }
 
-    /** Wraps article body in minimal HTML so the ebook contains only content, not full page chrome. */
+    /**
+     * Wraps the extracted article body in minimal HTML: doctype, head (charset, base, styles),
+     * body with h1 title and content. Styles include list alignment, heading spacing, and tweet-embed.
+     */
     private static String buildMinimalHtml(String title, String body, String baseUrl) {
         StringBuilder sb = new StringBuilder();
         sb.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n");
@@ -205,14 +235,18 @@ public class Readstack {
         return sb.toString();
     }
 
+    /** Escapes HTML special characters so text is safe inside attributes or content. */
     private static String escapeHtml(String s) {
         if (s == null) return "";
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
-    /** Simplify tweet embeds to: profile photo, @handle, tweet text (once), date/views. Removes duplicate text and cruft. */
+    /**
+     * Simplifies tweet embeds to: profile photo, @handle, tweet text (once), date/views.
+     * Handles blockquote.twitter-tweet and Substack-style embed divs; removes duplicate text.
+     */
     private static String simplifyTweetEmbeds(String html) {
-        // 1. Standard blockquote.twitter-tweet: <blockquote class="twitter-tweet"> <p>text</p> — Name (@handle) <a>date</a> </blockquote>
+        // 1. Standard Twitter embed: blockquote with class twitter-tweet
         Pattern block = Pattern.compile("<blockquote[^>]*class=[^>]*twitter-tweet[^>]*>(.*?)</blockquote>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
         Matcher m = block.matcher(html);
         StringBuffer sb = new StringBuffer();
@@ -244,7 +278,7 @@ public class Readstack {
         m.appendTail(sb);
         html = sb.toString();
 
-        // 2. Substack-style embed: div with embed + duplicate text. Keep first img, first @handle, first substantial text block; remove duplicate paragraphs.
+        // 2. Substack-style embed divs: keep first img, @handle, first substantial text; drop duplicates
         Pattern embedDiv = Pattern.compile("<div[^>]*class=[^>]*embed[^>]*>.*?</div>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
         m = embedDiv.matcher(html);
         sb = new StringBuffer();
@@ -285,13 +319,17 @@ public class Readstack {
         return sb.toString();
     }
 
-    /** Prepares fetched HTML for ebook conversion: base URL for images, local image files, strip URL/code cruft. */
+    /**
+     * Full pipeline to prepare HTML for ebook conversion: inject base URL, resolve image URLs,
+     * download images locally, strip links/captions/URLs, simplify tweets, and run aggressive cleanup.
+     */
     private static String prepareHtmlForEbook(String html, String articleUrl, Path articlesDir, String baseName) {
         if (html == null || html.isEmpty()) {
             return html;
         }
         String baseUrl = getBaseUrl(articleUrl);
         if (!baseUrl.isEmpty()) {
+            // Inject <base href="..."> so relative image URLs resolve
             if (!html.contains("<base ") && !html.contains("<base>")) {
                 html = Pattern.compile("(<head[^>]*>)", Pattern.CASE_INSENSITIVE)
                         .matcher(html)
@@ -302,6 +340,7 @@ public class Readstack {
         html = stripImageLinks(html);
         Path articleImagesDir = articlesDir.resolve(baseName);
         html = downloadImagesToLocal(html, articleImagesDir, baseName);
+        // Strip cruft, URLs, links, figcaptions; simplify math and tweets; then aggressive clean
         html = stripImageCruft(html);
         html = stripVisibleUrlsAndLinks(html);
         html = stripFigureCaptionsWithUrls(html);
@@ -311,9 +350,12 @@ public class Readstack {
         return html;
     }
 
-    /** Nuclear option: nuke every remaining URL, normalize img to src-only, strip scripts/styles, remove attributes that can show URLs. */
+    /**
+     * Aggressive final cleanup: normalize img to src-only, remove script/style blocks,
+     * replace all remaining URLs with [link], strip domain names from text, remove attributes from tags.
+     */
     private static String aggressiveClean(String html) {
-        // 1. Normalize every <img> to only src and alt="" (no data-*, srcset, class, etc.)
+        // 1. Normalize every <img> to only src and alt=""; drop data URLs
         Matcher imgMatcher = Pattern.compile("<img[^>]*\\ssrc=([\"'])([^\"']+)\\1[^>]*>", Pattern.CASE_INSENSITIVE).matcher(html);
         StringBuffer sb = new StringBuffer();
         while (imgMatcher.find()) {
@@ -328,14 +370,14 @@ public class Readstack {
         imgMatcher.appendTail(sb);
         html = sb.toString();
 
-        // 2. Remove script and style blocks entirely
+        // 2. Remove script and style blocks (no JS/CSS or embedded URLs)
         html = Pattern.compile("<script[^>]*>.*?</script>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html).replaceAll("");
         html = Pattern.compile("<style[^>]*>.*?</style>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html).replaceAll("");
 
-        // 3. Nuke EVERY remaining http(s) URL in the entire document (images are already local)
+        // 3. Replace every remaining http(s) URL with [link] (images are already local)
         html = Pattern.compile("https?://[^\\s\"'<>]+").matcher(html).replaceAll("[link]");
 
-        // 4. Replace domain-like strings in visible text (thing.tld or sub.thing.tld) so they don't show
+        // 4. In visible text, remove domain-like strings (e.g. substack.com, amazonaws.com)
         Pattern textPat = Pattern.compile(">([^<]*)<");
         Matcher textMat = textPat.matcher(html);
         StringBuffer sb2 = new StringBuffer();
@@ -350,19 +392,23 @@ public class Readstack {
         textMat.appendTail(sb2);
         html = sb2.toString();
 
-        // 5. Strip all attributes from common container/inline tags (removes any href, title, data-*, class with cruft)
+        // 5. Strip all attributes from container/inline tags (removes href, title, data-*, etc.)
         String[] tagNames = { "div", "p", "span", "section", "figure", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote", "strong", "em" };
         for (String tag : tagNames) {
             html = Pattern.compile("<" + tag + "\\s+[^>]+>", Pattern.CASE_INSENSITIVE).matcher(html).replaceAll("<" + tag + ">");
         }
 
-        // 6. Remove any leftover empty tags and collapse whitespace
+        // 6. Remove empty figures and collapse whitespace
         html = html.replaceAll("<figure>\\s*</figure>", "");
         html = html.replaceAll("\\s+", " ");
         html = html.replaceAll(">\\s+<", "><");
         return html;
     }
 
+    /**
+     * Parses a URL and returns the base (scheme + host + port if non-default).
+     * Used for resolving relative image URLs.
+     */
     private static String getBaseUrl(String url) {
         try {
             URI u = URI.create(url);
@@ -383,15 +429,19 @@ public class Readstack {
         }
     }
 
+    /**
+     * Resolves image src to absolute URLs: prefers data-src over src for lazy-loaded images,
+     * then converts relative and protocol-relative URLs to absolute using baseUrl.
+     */
     private static String resolveImgSrc(String html, String baseUrl) {
-        // Where img has data-src (lazy loading), use it as src so the converter can fetch the image
+        // For lazy-loaded images, use data-src as the real URL
         html = Pattern.compile("(<img[^>]*)\\s+data-src=([\"'])([^\"']+)\\2([^>]*)\\ssrc=([\"'])([^\"']+)\\6([^>]*>)", Pattern.CASE_INSENSITIVE)
                 .matcher(html)
                 .replaceAll("$1 src=$2$3$2$4$8");
         html = Pattern.compile("(<img[^>]*)\\ssrc=([\"'])([^\"']+)\\2([^>]*)\\s+data-src=([\"'])([^\"']+)\\6([^>]*>)", Pattern.CASE_INSENSITIVE)
                 .matcher(html)
                 .replaceAll("$1 src=$5$6$5$4$7");
-        // Replace src="relative" with src="absolute"
+        // Convert relative and protocol-relative URLs to absolute
         Matcher m = Pattern.compile("(<img[^>]*\\s+src=)([\"'])([^\"']+)(\\2)", Pattern.CASE_INSENSITIVE).matcher(html);
         StringBuffer sb = new StringBuffer();
         while (m.find()) {
@@ -403,6 +453,10 @@ public class Readstack {
         return sb.toString();
     }
 
+    /**
+     * Converts a relative or protocol-relative URL to absolute.
+     * Already-absolute URLs are returned unchanged.
+     */
     private static String toAbsoluteUrl(String url, String baseUrl) {
         if (url == null || url.isEmpty()) {
             return url;
@@ -420,7 +474,10 @@ public class Readstack {
         return baseUrl + u;
     }
 
-    /** Download each image to a local file and set img src to the relative path (no data URLs = no massive code blocks). */
+    /**
+     * Downloads each image from its URL to a local file (e.g. 0.png, 1.jpg) in articleImagesDir.
+     * Updates img src to the relative path (baseName/0.png) so no data URLs or external URLs remain.
+     */
     private static String downloadImagesToLocal(String html, Path articleImagesDir, String baseName) {
         HttpClient client = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NORMAL)
@@ -436,6 +493,7 @@ public class Readstack {
                 continue;
             }
             byte[] bytes = fetchImageBytes(client, src);
+            // Infer extension from URL; save to articleImagesDir; update src to relative path
             String replacement = null;
             if (bytes != null) {
                 try {
@@ -463,6 +521,10 @@ public class Readstack {
         return sb.toString();
     }
 
+    /**
+     * Fetches image bytes from the given URL. Returns null on failure.
+     * Uses browser-like User-Agent so CDNs don't block the request.
+     */
     private static byte[] fetchImageBytes(HttpClient client, String imageUrl) {
         try {
             HttpRequest request = HttpRequest.newBuilder()
@@ -481,7 +543,10 @@ public class Readstack {
         }
     }
 
-    /** Remove data-* and other attributes from img that can show as code/URLs in readers. */
+    /**
+     * Removes data-* and srcset attributes from img tags.
+     * These can contain long URLs or base64 that show as cruft in some readers.
+     */
     private static String stripImageCruft(String html) {
         Matcher m = Pattern.compile("<img([^>]*)>", Pattern.CASE_INSENSITIVE).matcher(html);
         StringBuffer sb = new StringBuffer();
@@ -495,14 +560,19 @@ public class Readstack {
         return sb.toString();
     }
 
-    /** Remove figure captions that contain URLs or long strings (source links, etc.). */
+    /**
+     * Removes all &lt;figcaption&gt; elements. Captions often contain image source URLs.
+     */
     private static String stripFigureCaptionsWithUrls(String html) {
         // Remove all <figcaption>...</figcaption> so no image source URLs or captions show
         html = Pattern.compile("<figcaption[^>]*>.*?</figcaption>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html).replaceAll("");
         return html;
     }
 
-    /** Remove <a href="..."> wrappers around images so link URLs don't show in the ebook. */
+    /**
+     * Removes &lt;a&gt; wrappers around images; keeps only the &lt;img&gt;.
+     * Also clears alt attributes that are URLs.
+     */
     private static String stripImageLinks(String html) {
         // Replace <a ...><img ...></a> with just <img ...> (match non-greedy so we get one img per link)
         html = Pattern.compile("<a[^>]+href=[\"'][^\"']*[\"'][^>]*>\\s*(<img[^>]*>)\\s*</a>", Pattern.CASE_INSENSITIVE)
@@ -515,7 +585,10 @@ public class Readstack {
         return html;
     }
 
-    /** Remove link wrappers and replace visible URL text so HTML/AWS domains don't show in the ebook. */
+    /**
+     * Removes all &lt;a&gt; tags (keeps inner content), strips title attributes that are URLs,
+     * and replaces visible http(s) URLs in text with [link].
+     */
     private static String stripVisibleUrlsAndLinks(String html) {
         // Remove title attributes that are URLs (can show as tooltip/caption)
         html = Pattern.compile("\\stitle=[\"']https?://[^\"']*[\"']", Pattern.CASE_INSENSITIVE).matcher(html).replaceAll("");
@@ -538,7 +611,10 @@ public class Readstack {
         return html;
     }
 
-    /** Converts LaTeX-style math in HTML to readable form for MOBI (Unicode symbols + visible code). */
+    /**
+     * Converts LaTeX-style math to readable form: replaces common commands with Unicode
+     * (e.g. \\alpha → α), and wraps unhandled \( ... \) and $$ ... $$ in spans so they display.
+     */
     private static String makeMathReadable(String html) {
         // Replace common LaTeX commands with Unicode equivalents so they render in e-readers
         String[] replacements = {
@@ -562,8 +638,10 @@ public class Readstack {
         return html;
     }
 
+    /**
+     * Extracts the article title from HTML: tries &lt;title&gt; first, then og:title meta.
+     */
     private static String extractTitle(String html) {
-        // Prefer <title>...</title>
         Matcher titleMatcher = Pattern.compile("<title[^>]*>([^<]+)</title>", Pattern.CASE_INSENSITIVE).matcher(html);
         if (titleMatcher.find()) {
             return titleMatcher.group(1).trim();
@@ -576,6 +654,10 @@ public class Readstack {
         return "";
     }
 
+    /**
+     * Converts a title string to a safe filename: replaces invalid chars, collapses spaces,
+     * trims hyphens, and limits length to 150 chars.
+     */
     private static String sanitizeFilename(String title) {
         if (title == null || title.isEmpty()) {
             return "";
@@ -595,8 +677,10 @@ public class Readstack {
         return sanitized;
     }
 
+    /**
+     * Locates the ebook-convert executable: checks PATH first, then macOS Calibre app paths.
+     */
     private static String findEbookConvert() {
-        // Prefer ebook-convert in PATH
         String pathEnv = System.getenv("PATH");
         if (pathEnv != null) {
             for (String dir : pathEnv.split(File.pathSeparator)) {
@@ -621,6 +705,10 @@ public class Readstack {
         return "ebook-convert"; // fallback; will fail with a clear error if missing
     }
 
+    /**
+     * Invokes Calibre's ebook-convert to convert HTML to MOBI.
+     * Inherits stdin/stdout/stderr so the user sees conversion progress.
+     */
     private static void convertToMobi(String htmlFile, String mobiFile) throws IOException, InterruptedException {
         System.out.println("Converting to MOBI...");
 
