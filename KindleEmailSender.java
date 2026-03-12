@@ -22,6 +22,10 @@ import jakarta.mail.internet.MimeMultipart;
 /**
  * Sends a generated ebook as an email attachment to configured recipient addresses.
  * Uses Jakarta Mail with Gmail SMTP so MIME formatting is standards-compliant.
+ *
+ * This class used to build raw MIME messages by hand. That was good enough for
+ * normal inboxes but brittle for Kindle ingestion, so we now delegate message
+ * construction to Jakarta Mail and keep our own logic focused on configuration.
  */
 public class KindleEmailSender {
     private static final String SMTP_HOST = "smtp.gmail.com";
@@ -36,6 +40,8 @@ public class KindleEmailSender {
     }
 
     public static void sendToKindle(Path ebookPath) {
+        // Preflight checks are intentionally shared with the CLI so the user gets a
+        // clear configuration message before conversion work starts.
         if (!validateConfiguration(true)) {
             return;
         }
@@ -51,6 +57,9 @@ public class KindleEmailSender {
         System.out.println("Sending EPUB to recipients...");
 
         try {
+            // We send separately to each recipient instead of using one multi-recipient
+            // message because Kindle and regular inboxes can behave differently, and
+            // per-recipient sends make delivery failures easier to reason about.
             for (String recipientEmail : recipientEmails) {
                 sendMessage(senderEmail, senderPassword, recipientEmail, ebookPath);
             }
@@ -63,12 +72,17 @@ public class KindleEmailSender {
     private static void sendMessage(String senderEmail, String senderPassword, String recipientEmail, Path ebookPath)
             throws MessagingException, IOException {
         Properties props = new Properties();
+        // Gmail on port 465 expects implicit SSL. We keep the config explicit here so
+        // the behavior is readable without digging through Jakarta Mail defaults.
         props.put("mail.smtp.host", SMTP_HOST);
         props.put("mail.smtp.port", Integer.toString(SMTP_PORT));
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.ssl.enable", "true");
         props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
 
+        // Jakarta Mail builds a standards-compliant message with proper headers,
+        // boundaries, and encodings. That is the main reason this path is more robust
+        // than the earlier hand-built SMTP implementation.
         Session session = Session.getInstance(props, new Authenticator() {
             @Override
             protected PasswordAuthentication getPasswordAuthentication() {
@@ -81,9 +95,13 @@ public class KindleEmailSender {
         message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(recipientEmail, false));
         message.setSubject("Readstack delivery", StandardCharsets.UTF_8.name());
 
+        // The plain-text body is intentionally tiny. The attachment is the product,
+        // and extra body formatting does not help Kindle delivery.
         MimeBodyPart textPart = new MimeBodyPart();
         textPart.setText("Sent by Readstack.", StandardCharsets.UTF_8.name());
 
+        // We force the EPUB content type so downstream mail handling and Kindle both
+        // see the attachment as an ebook instead of generic binary data.
         MimeBodyPart attachmentPart = new MimeBodyPart();
         attachmentPart.attachFile(ebookPath.toFile());
         attachmentPart.setHeader("Content-Type", "application/epub+zip; name=\"" + ebookPath.getFileName() + "\"");
@@ -99,6 +117,8 @@ public class KindleEmailSender {
     }
 
     private static boolean validateConfiguration(boolean verbose) {
+        // Configuration validation is centralized here so the CLI and delivery code do
+        // not drift apart when new config keys or fallback paths are added later.
         String senderEmail = ReadstackConfig.get("READSTACK_SMTP_EMAIL");
         String senderPassword = getSmtpPassword();
         List<String> recipientEmails = getRecipientEmails();
@@ -141,6 +161,12 @@ public class KindleEmailSender {
     }
 
     private static String getSmtpPassword() {
+        // Preference order:
+        // 1. Explicit env/.env password
+        // 2. macOS Keychain lookup
+        //
+        // This lets local development stay simple while still supporting a safer
+        // no-password-in-dotenv setup on macOS.
         String configuredPassword = ReadstackConfig.get("READSTACK_SMTP_PASSWORD");
         if (!isBlank(configuredPassword)) {
             return configuredPassword;
@@ -149,6 +175,8 @@ public class KindleEmailSender {
     }
 
     private static List<String> getRecipientEmails() {
+        // The multi-recipient variable is the current path. The legacy Kindle-only
+        // variable is still supported so old local setups do not break immediately.
         String configuredRecipients = ReadstackConfig.get("READSTACK_RECIPIENT_EMAILS");
         if (!isBlank(configuredRecipients)) {
             List<String> recipients = new ArrayList<>();
@@ -171,6 +199,8 @@ public class KindleEmailSender {
     }
 
     private static String lookupPasswordInKeychain(String senderEmail) {
+        // Keychain access is macOS-specific and can fail under some sandboxes. In those
+        // cases we return an empty string and let validation explain the fallback.
         if (isBlank(senderEmail) || !isMac()) {
             return "";
         }
@@ -187,6 +217,8 @@ public class KindleEmailSender {
 
         try {
             Process process = pb.start();
+            // We bound the wait so a stuck `security` process does not hang the entire
+            // CLI. Delivery should fail fast rather than appear frozen.
             boolean finished = process.waitFor(5, TimeUnit.SECONDS);
             if (!finished) {
                 process.destroyForcibly();
@@ -203,6 +235,8 @@ public class KindleEmailSender {
     }
 
     private static String getKeychainService() {
+        // The service name is configurable mainly so users can manage multiple Gmail
+        // senders without colliding entries in the same macOS keychain.
         String service = ReadstackConfig.get("READSTACK_SMTP_KEYCHAIN_SERVICE");
         return isBlank(service) ? "readstack-smtp" : service;
     }
