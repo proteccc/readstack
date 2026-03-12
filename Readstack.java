@@ -4,6 +4,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
@@ -11,24 +13,48 @@ import java.util.regex.Pattern;
 
 /**
  * Readstack: CLI tool that fetches a Substack article URL, extracts the content,
- * downloads images locally, cleans HTML/URLs, and converts to MOBI for Kindle.
+ * downloads images locally, cleans HTML/URLs, and converts to EPUB for delivery.
  */
 public class Readstack {
 
     /**
      * Entry point. Expects one argument: a Substack article URL.
      * Fetches the page, extracts article body, prepares HTML for ebook conversion,
-     * saves to articles/ folder, and converts to MOBI via Calibre's ebook-convert.
+     * saves to articles/ folder, and converts to EPUB via Calibre's ebook-convert.
      */
     public static void main(String[] args) throws Exception {
-
-        // Validate exactly one URL argument
-        if (args.length != 1) {
-            System.out.println("Usage: java Readstack <substack-url>");
-            return;
+        boolean sendToKindle = false;
+        String url = null;
+        for (String arg : args) {
+            if ("--send".equals(arg)) {
+                sendToKindle = true;
+            } else if ("--nosend".equals(arg)) {
+                sendToKindle = false;
+            } else if (arg.startsWith("--")) {
+                System.out.println("Unknown option: " + arg);
+                System.out.println("Usage: java Readstack <substack-url> [--send|--nosend]");
+                return;
+            } else if (url == null) {
+                url = arg;
+            } else {
+                System.out.println("Usage: java Readstack <substack-url> [--send|--nosend]");
+                return;
+            }
         }
 
-        String url = args[0];
+        // Validate URL argument
+        if (url == null) {
+            System.out.println("Usage: java Readstack <substack-url> [--send|--nosend]");
+            return;
+        }
+        if (!isValidHttpUrl(url)) {
+            System.out.println("Invalid URL: " + url);
+            System.out.println("Usage: java Readstack <substack-url> [--send|--nosend]");
+            return;
+        }
+        if (sendToKindle && !KindleEmailSender.printPreflightCheck()) {
+            return;
+        }
 
         // Fetch the page; open.substack.com often returns a redirect body, so follow it
         String html = downloadHtml(url);
@@ -47,11 +73,11 @@ public class Readstack {
             baseName = "article";
         }
 
-        // Create articles/ directory and paths for HTML and MOBI output
+        // Create articles/ directory and paths for HTML and EPUB output
         Path articlesDir = Path.of("articles");
         Files.createDirectories(articlesDir);
         Path htmlPath = articlesDir.resolve(baseName + ".html");
-        Path mobiPath = articlesDir.resolve(baseName + ".mobi");
+        Path epubPath = articlesDir.resolve(baseName + ".epub");
 
         // Extract article body, wrap in minimal HTML, then run full ebook prep pipeline
         String effectiveUrl = redirectUrl != null ? redirectUrl : url;
@@ -61,11 +87,17 @@ public class Readstack {
         Files.createDirectories(articleImagesDir);
         html = prepareHtmlForEbook(html, effectiveUrl, articlesDir, baseName);
 
-        // Write prepared HTML and convert to MOBI via Calibre
+        // Write prepared HTML and convert to EPUB via Calibre
         Files.writeString(htmlPath, html);
-        convertToMobi(htmlPath.toString(), mobiPath.toString());
+        convertToEpub(htmlPath.toString(), epubPath.toString());
+        sanitizeEpubForKindle(epubPath);
 
-        System.out.println("Conversion complete: " + mobiPath);
+        System.out.println("Conversion complete: " + epubPath);
+        if (sendToKindle) {
+            KindleEmailSender.sendToKindle(epubPath);
+        } else {
+            System.out.println("Kindle delivery skipped.");
+        }
     }
 
     /**
@@ -88,6 +120,18 @@ public class Readstack {
                 client.send(request, HttpResponse.BodyHandlers.ofString());
 
         return response.body();
+    }
+
+    private static boolean isValidHttpUrl(String url) {
+        try {
+            URI uri = URI.create(url);
+            String scheme = uri.getScheme();
+            return ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+                    && uri.getHost() != null
+                    && !uri.getHost().isBlank();
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     /**
@@ -691,50 +735,4 @@ public class Readstack {
             }
         }
         // On macOS, Calibre is often installed as an app and not in PATH
-        if (System.getProperty("os.name").toLowerCase().contains("mac")) {
-            String[] macPaths = {
-                "/Applications/calibre.app/Contents/MacOS/ebook-convert",
-                "/Applications/Calibre.app/Contents/MacOS/ebook-convert"
-            };
-            for (String p : macPaths) {
-                if (Files.isExecutable(Path.of(p))) {
-                    return p;
-                }
-            }
-        }
-        return "ebook-convert"; // fallback; will fail with a clear error if missing
-    }
-
-    /**
-     * Invokes Calibre's ebook-convert to convert HTML to MOBI.
-     * Inherits stdin/stdout/stderr so the user sees conversion progress.
-     */
-    private static void convertToMobi(String htmlFile, String mobiFile) throws IOException, InterruptedException {
-        System.out.println("Converting to MOBI...");
-
-        String ebookConvert = findEbookConvert();
-        ProcessBuilder pb = new ProcessBuilder(
-                ebookConvert,
-                htmlFile,
-                mobiFile
-        );
-        pb.inheritIO();
-
-        try {
-            Process process = pb.start();
-            int exitCode = process.waitFor();
-
-            if (exitCode != 0) {
-                throw new RuntimeException("Conversion failed with exit code " + exitCode + ".");
-            }
-        } catch (IOException e) {
-            if (e.getMessage() != null && e.getMessage().contains("Cannot run program")) {
-                throw new IOException(
-                    "Could not run ebook-convert. Install Calibre (https://calibre-ebook.com) and ensure it is on your PATH, or on macOS it will be used from /Applications/calibre.app.",
-                    e
-                );
-            }
-            throw e;
-        }
-    }
-}
+        if (System.getProperty("os.name").toLowerCas
