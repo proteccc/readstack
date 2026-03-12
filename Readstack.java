@@ -735,4 +735,74 @@ public class Readstack {
             }
         }
         // On macOS, Calibre is often installed as an app and not in PATH
-        if (System.getProperty("os.name").toLowerCas
+        if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+            String[] macPaths = {
+                "/Applications/calibre.app/Contents/MacOS/ebook-convert",
+                "/Applications/Calibre.app/Contents/MacOS/ebook-convert"
+            };
+            for (String p : macPaths) {
+                if (Files.isExecutable(Path.of(p))) {
+                    return p;
+                }
+            }
+        }
+        return "ebook-convert"; // fallback; will fail with a clear error if missing
+    }
+
+    /**
+     * Invokes Calibre's ebook-convert to convert HTML to EPUB.
+     * Inherits stdin/stdout/stderr so the user sees conversion progress.
+     */
+    private static void convertToEpub(String htmlFile, String epubFile) throws IOException, InterruptedException {
+        System.out.println("Converting to EPUB...");
+
+        String ebookConvert = findEbookConvert();
+        ProcessBuilder pb = new ProcessBuilder(
+                ebookConvert,
+                htmlFile,
+                epubFile
+        );
+        pb.inheritIO();
+
+        try {
+            Process process = pb.start();
+            int exitCode = process.waitFor();
+
+            if (exitCode != 0) {
+                throw new RuntimeException("Conversion failed with exit code " + exitCode + ".");
+            }
+        } catch (IOException e) {
+            if (e.getMessage() != null && e.getMessage().contains("Cannot run program")) {
+                throw new IOException(
+                    "Could not run ebook-convert. Install Calibre (https://calibre-ebook.com) and ensure it is on your PATH, or on macOS it will be used from /Applications/calibre.app.",
+                    e
+                );
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Rewrites Calibre's SVG-based cover page to a plain img tag for better Kindle compatibility.
+     */
+    private static void sanitizeEpubForKindle(Path epubPath) throws IOException {
+        System.out.println("Sanitizing EPUB for Kindle...");
+
+        URI epubUri = URI.create("jar:" + epubPath.toUri());
+        try (FileSystem zipFs = FileSystems.newFileSystem(epubUri, java.util.Map.of())) {
+            Path titlePage = zipFs.getPath("/titlepage.xhtml");
+            if (!Files.exists(titlePage)) {
+                return;
+            }
+
+            String titlePageHtml = Files.readString(titlePage);
+            String sanitizedHtml = titlePageHtml.replaceAll(
+                    "(?s)<svg[^>]*>\\s*<image[^>]*xlink:href=\"([^\"]+)\"[^>]*/>\\s*</svg>",
+                    "<img src=\"$1\" alt=\"Cover\" style=\"max-width: 100%; height: auto;\"/>"
+            );
+            if (!sanitizedHtml.equals(titlePageHtml)) {
+                Files.writeString(titlePage, sanitizedHtml);
+            }
+        }
+    }
+}

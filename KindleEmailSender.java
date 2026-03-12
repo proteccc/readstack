@@ -165,4 +165,124 @@ public class KindleEmailSender {
         writer.write(value);
     }
 
-    private static String base64(
+    private static String base64(String value) {
+        return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static boolean validateConfiguration(boolean verbose) {
+        String senderEmail = ReadstackConfig.get("READSTACK_SMTP_EMAIL");
+        String senderPassword = getSmtpPassword();
+        List<String> recipientEmails = getRecipientEmails();
+        String keychainService = getKeychainService();
+
+        boolean valid = true;
+        if (isBlank(senderEmail)) {
+            valid = false;
+            if (verbose) {
+                System.out.println("Missing env var: READSTACK_SMTP_EMAIL");
+            }
+        }
+        if (isBlank(senderPassword)) {
+            valid = false;
+            if (verbose) {
+                System.out.println("Missing SMTP password: set READSTACK_SMTP_PASSWORD or store it in macOS Keychain.");
+            }
+        }
+        if (recipientEmails.isEmpty()) {
+            valid = false;
+            if (verbose) {
+                System.out.println("Missing recipient configuration: set READSTACK_RECIPIENT_EMAILS or READSTACK_KINDLE_EMAIL.");
+            }
+        }
+
+        if (!valid && verbose) {
+            System.out.println("EPUB delivery not configured, skipping.");
+            System.out.println("Recommended local setup:");
+            System.out.println("  1. Edit .env if you need to change the sender or recipients.");
+            System.out.println("  2. Store the Gmail app password in Keychain:");
+            if (!isBlank(senderEmail)) {
+                System.out.println("     security add-generic-password -a \"" + senderEmail + "\" -s \"" + keychainService + "\" -w");
+            } else {
+                System.out.println("     security add-generic-password -a \"your-gmail@gmail.com\" -s \"" + keychainService + "\" -w");
+            }
+            System.out.println("  3. If your runtime cannot read macOS Keychain, set READSTACK_SMTP_PASSWORD in local .env as a fallback.");
+            System.out.println("  4. Run: ./readstack <substack-url> --send");
+        }
+        return valid;
+    }
+
+    private static String getSmtpPassword() {
+        String configuredPassword = ReadstackConfig.get("READSTACK_SMTP_PASSWORD");
+        if (!isBlank(configuredPassword)) {
+            return configuredPassword;
+        }
+        return lookupPasswordInKeychain(ReadstackConfig.get("READSTACK_SMTP_EMAIL"));
+    }
+
+    private static List<String> getRecipientEmails() {
+        String configuredRecipients = ReadstackConfig.get("READSTACK_RECIPIENT_EMAILS");
+        if (!isBlank(configuredRecipients)) {
+            List<String> recipients = new ArrayList<>();
+            for (String recipient : configuredRecipients.split(",")) {
+                String trimmed = recipient.trim();
+                if (!isBlank(trimmed) && !recipients.contains(trimmed)) {
+                    recipients.add(trimmed);
+                }
+            }
+            if (!recipients.isEmpty()) {
+                return recipients;
+            }
+        }
+
+        String legacyRecipient = ReadstackConfig.get("READSTACK_KINDLE_EMAIL");
+        if (!isBlank(legacyRecipient)) {
+            return Arrays.asList(legacyRecipient.trim());
+        }
+        return List.of();
+    }
+
+    private static String lookupPasswordInKeychain(String senderEmail) {
+        if (isBlank(senderEmail) || !isMac()) {
+            return "";
+        }
+
+        ProcessBuilder pb = new ProcessBuilder(
+                "security",
+                "find-generic-password",
+                "-a",
+                senderEmail,
+                "-s",
+                getKeychainService(),
+                "-w"
+        );
+
+        try {
+            Process process = pb.start();
+            boolean finished = process.waitFor(5, TimeUnit.SECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                return "";
+            }
+            if (process.exitValue() != 0) {
+                return "";
+            }
+            String password = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+            return password;
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private static String getKeychainService() {
+        String service = ReadstackConfig.get("READSTACK_SMTP_KEYCHAIN_SERVICE");
+        return isBlank(service) ? "readstack-smtp" : service;
+    }
+
+    private static boolean isMac() {
+        return System.getProperty("os.name").toLowerCase().contains("mac");
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+}
