@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
-import { defaultSettingsFields } from "@/lib/app-config";
 import { getCurrentUser } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { SettingsClient } from "./SettingsClient";
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
@@ -9,69 +10,33 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
+  const destinations = await db.deliveryDestination.findMany({
+    where: { userId: user.id },
+  });
+
+  const kindleDestination = destinations.find((d) => d.kind === "kindle");
+  const emailDestination = destinations.find((d) => d.kind === "email");
+
   return (
     <div className="shell">
       <section className="hero">
         <div className="stack">
-          <span className="eyebrow">User Settings</span>
-          <h1>Recipient storage belongs in the product now.</h1>
+          <span className="eyebrow">Settings</span>
+          <h1>Delivery destinations</h1>
           <p>
-            The web app needs persisted delivery destinations so users do not
-            need to repeat Kindle setup or touch local config. This page is the
-            natural home for that state.
+            Configure where your articles are sent. Your Kindle email is
+            required; the secondary inbox is optional and useful for keeping a
+            copy for yourself.
           </p>
         </div>
       </section>
 
       <section className="panel">
         <div className="stack">
-          <span className="eyebrow">Test 2 · Destination model</span>
-          <h2>Persisted Kindle addresses (design stub)</h2>
-          <p>
-            This pill describes the shape of the delivery-destination model we
-            will wire next, and gives you a checklist for what to verify once
-            the form is live.
-          </p>
-
-          <div className="field-list">
-            <div className="field">
-              <strong>Input</strong>
-              <span className="muted">
-                Primary Kindle email (required) and optional secondary inbox,
-                captured from a future settings form.
-              </span>
-            </div>
-            <div className="field">
-              <strong>Output</strong>
-              <span className="muted">
-                `DeliveryDestination` rows in Postgres scoped to your `User.id`,
-                with one primary Kindle address.
-              </span>
-            </div>
-            <div className="field">
-              <strong>Success state</strong>
-              <span className="muted">
-                Settings form loads with your saved addresses pre-filled and
-                updates them without errors.
-              </span>
-            </div>
-            <div className="field">
-              <strong>Failure states</strong>
-              <span className="muted">
-                Validation errors for invalid emails, and clear messaging if the
-                backend fails to save changes.
-              </span>
-            </div>
-          </div>
-
-          <div className="field-list">
-            {defaultSettingsFields.map((field) => (
-              <div className="field" key={field.label}>
-                <strong>{field.label}</strong>
-                <span className="muted">{field.description}</span>
-              </div>
-            ))}
-          </div>
+          <SettingsClient
+            kindleEmail={kindleDestination?.email ?? ""}
+            secondaryEmail={emailDestination?.email ?? ""}
+          />
         </div>
       </section>
     </div>

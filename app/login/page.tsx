@@ -1,14 +1,29 @@
 'use client';
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Status = "idle" | "sending" | "sent" | "error";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // When the magic link redirects back to /login, Supabase attaches a code
+  // in the URL. The browser client reads it, sets cookies, and we can then
+  // send the user to the dashboard.
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        router.replace("/dashboard");
+      }
+    });
+  }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,7 +47,7 @@ export default function LoginPage() {
         options: {
           emailRedirectTo:
             typeof window !== "undefined"
-              ? `${window.location.origin}/dashboard`
+              ? `${window.location.origin}/login`
               : undefined,
         },
       });
@@ -57,8 +72,9 @@ export default function LoginPage() {
           <span className="eyebrow">Sign in</span>
           <h1>Sign in to Readstack</h1>
           <p>
-            Enter your email to receive a one-time magic link. This will create
-            a minimal user record that future settings and jobs can attach to.
+            Enter your email to receive a one-time magic link. After you click
+            it, this page will complete the sign-in and take you to the
+            dashboard.
           </p>
         </div>
       </section>
@@ -86,8 +102,8 @@ export default function LoginPage() {
 
           {status === "sent" && (
             <p className="muted">
-              Check your email for a sign-in link. After clicking it, you will
-              be redirected back to the dashboard.
+              Check your email for a sign-in link. Open it in this browser and
+              you&apos;ll be redirected here first, then to the dashboard.
             </p>
           )}
 
@@ -101,4 +117,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
 

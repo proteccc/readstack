@@ -2,8 +2,8 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export function getSupabaseServerClient(): SupabaseClient {
-  const cookieStore = cookies();
+export async function getSupabaseServerClient(): Promise<SupabaseClient> {
+  const cookieStore = await cookies();
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -20,17 +20,19 @@ export function getSupabaseServerClient(): SupabaseClient {
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: Record<string, any>) {
-        cookieStore.set({ name, value, ...options });
+        // In layouts and server components we treat Supabase cookies as read-only.
+        // Writes are handled in route handlers and server actions instead.
+        return;
       },
       remove(name: string, options: Record<string, any>) {
-        cookieStore.set({ name, value: "", ...options, maxAge: 0 });
+        return;
       },
     },
   });
 }
 
 export async function getSupabaseUser() {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   const {
     data: { user },
     error,
