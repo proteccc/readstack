@@ -1,4 +1,4 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 javac -encoding UTF-8 *.java >/dev/null 2>&1 || true
-exec java Readst
+exec java Readstack "$@"
