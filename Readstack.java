@@ -386,6 +386,7 @@ public class Readstack {
         html = downloadImagesToLocal(html, articleImagesDir, baseName);
         // Strip cruft, URLs, links, figcaptions; simplify math and tweets; then aggressive clean
         html = stripImageCruft(html);
+        html = stripUiChrome(html);
         html = stripVisibleUrlsAndLinks(html);
         html = stripFigureCaptionsWithUrls(html);
         html = makeMathReadable(html);
@@ -399,6 +400,8 @@ public class Readstack {
      * replace all remaining URLs with [link], strip domain names from text, remove attributes from tags.
      */
     private static String aggressiveClean(String html) {
+        html = flattenPictureTags(html);
+
         // 1. Normalize every <img> to only src and alt=""; drop data URLs
         Matcher imgMatcher = Pattern.compile("<img[^>]*\\ssrc=([\"'])([^\"']+)\\1[^>]*>", Pattern.CASE_INSENSITIVE).matcher(html);
         StringBuffer sb = new StringBuffer();
@@ -417,6 +420,11 @@ public class Readstack {
         // 2. Remove script and style blocks (no JS/CSS or embedded URLs)
         html = Pattern.compile("<script[^>]*>.*?</script>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html).replaceAll("");
         html = Pattern.compile("<style[^>]*>.*?</style>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html).replaceAll("");
+        html = stripSvgBlocks(html);
+        html = Pattern.compile("<button[^>]*>.*?</button>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html).replaceAll("");
+        html = Pattern.compile("<source[^>]*>", Pattern.CASE_INSENSITIVE).matcher(html).replaceAll("");
+        html = Pattern.compile("\\s+data-[a-z0-9-]+=([\"']).*?\\1", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html).replaceAll("");
+        html = Pattern.compile("\\s+[a-z0-9:-]+=([\"'])javascript:[^\"']*\\1", Pattern.CASE_INSENSITIVE).matcher(html).replaceAll("");
 
         // 3. Replace every remaining http(s) URL with [link] (images are already local)
         html = Pattern.compile("https?://[^\\s\"'<>]+").matcher(html).replaceAll("[link]");
@@ -447,6 +455,48 @@ public class Readstack {
         html = html.replaceAll("\\s+", " ");
         html = html.replaceAll(">\\s+<", "><");
         return html;
+    }
+
+    /**
+     * Removes obvious Substack UI chrome that should not appear in the ebook.
+     */
+    private static String stripUiChrome(String html) {
+        html = Pattern.compile("<button[^>]*>.*?</button>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html).replaceAll("");
+        html = Pattern.compile("<source[^>]*>", Pattern.CASE_INSENSITIVE).matcher(html).replaceAll("");
+        html = stripSvgBlocks(html);
+        return html;
+    }
+
+    /**
+     * Replaces picture wrappers with their img content so responsive image sources do not leak into output.
+     */
+    private static String flattenPictureTags(String html) {
+        Pattern picturePattern = Pattern.compile("<picture[^>]*>(.*?)</picture>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+        Matcher matcher = picturePattern.matcher(html);
+        StringBuffer sb = new StringBuffer();
+        while (matcher.find()) {
+            String pictureHtml = matcher.group(1);
+            Matcher imgMatcher = Pattern.compile("<img[^>]*>", Pattern.CASE_INSENSITIVE).matcher(pictureHtml);
+            String replacement = imgMatcher.find() ? imgMatcher.group(0) : "";
+            matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+
+    /**
+     * Removes inline SVG blocks, including nested SVG content commonly used for UI icons.
+     */
+    private static String stripSvgBlocks(String html) {
+        String previous;
+        String current = html;
+        do {
+            previous = current;
+            current = Pattern.compile("<svg[^>]*>.*?</svg>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL)
+                    .matcher(previous)
+                    .replaceAll("");
+        } while (!current.equals(previous));
+        return current;
     }
 
     /**
