@@ -1,149 +1,354 @@
-PROJECT NAME: readstack
+PROJECT NAME: Readstack
 
 ====================================== 1. PRODUCT OVERVIEW
 ======================================
 
-Product Vision: A minimal CLI tool that converts a Substack article URL
-into a MOBI file and sends it to a Kindle device via email within
-seconds.
+Product Vision:
+Turn a Substack article URL into a Kindle-friendly ebook with as little
+friction as possible.
 
-Experience Goal: Paste URL → Press Enter → Article appears on Kindle
+Current Product Reality:
+Readstack is now a working Java CLI that:
+- fetches a Substack article URL
+- extracts and cleans article content
+- downloads article images locally
+- converts the result into EPUB
+- post-processes the EPUB for Kindle compatibility
+- emails the EPUB to configured recipient addresses, including Kindle
 
-Constraints: - No UI - No automation (V1) - No hosting - No
-persistence - Stateless execution
+Experience Goal:
+Paste URL -> Click Send -> Article appears on Kindle
 
-====================================== 2. TARGET USER
+Protected Baseline:
+The current working CLI/EPUB implementation has been tagged in git as:
+- cli-epub-baseline
+
+This tag is the restore point before web-app product work.
+
+====================================== 2. CURRENT STATUS
 ======================================
 
-Primary user: - Substack reader - Uses Kindle for long-form reading -
-Comfortable with CLI tools - Subscriber to authors
+Shipped and working today:
+- URL ingestion from Substack and wrapped sharing links
+- EPUB generation via Calibre
+- Kindle-compatible EPUB sanitization
+- Email delivery to regular inboxes and Kindle addresses
+- Local configuration via .env and macOS Keychain fallback
+- Multi-recipient delivery
 
-====================================== 3. PROBLEM STATEMENT
+Known limitation:
+- Kindle "Go To" heading navigation is not yet reliably surfacing on-device
+
+====================================== 3. TARGET USER
 ======================================
 
-High-quality independent writing exists on Substack. Kindle is superior
-for long-form reading. There is no seamless method to send Substack
-articles to older Kindle devices requiring MOBI format.
+Primary near-term user:
+- heavy reader of Substack and similar long-form writing
+- prefers Kindle for focused reading
+- wants a faster alternative to manual browser/email workflows
+- is not necessarily comfortable using a CLI
 
-Manual workflows are friction-heavy and slow.
+Implication:
+The CLI is now a proof-of-value tool, not the ideal user-facing product.
 
-====================================== 4. SUCCESS CRITERIA
+====================================== 4. PROBLEM STATEMENT
 ======================================
 
-The system is successful if: - A URL can be pasted into the CLI - A
-valid .mobi file is generated - The file is emailed to Kindle - The
-article appears within ~60 seconds - Images are preserved - Full article
-renders correctly
+High-quality independent writing is increasingly distributed through
+email newsletters and Substack posts. Kindle is often a better reading
+surface for long-form work than a browser or inbox.
 
-====================================== 5. NON-GOALS (CRITICAL)
+The current manual workflow is poor:
+- open article
+- copy link
+- convert manually or use a browser extension
+- email or upload manually
+- troubleshoot formatting and Kindle compatibility
+
+Readstack's job is to collapse that workflow into one fast action.
+
+====================================== 5. SUCCESS CRITERIA
 ======================================
 
--   No web app
--   No automation
--   No multi-user system
--   No database
--   No cloud deployment
--   No Substack API integration
--   No bundling
--   No authentication system
--   No UI
+The product is successful if:
+- a user can submit an article URL in seconds
+- a valid EPUB is generated
+- the file is delivered successfully to the user's Kindle address
+- the article renders well on Kindle
+- images are preserved when possible
+- the workflow is substantially easier than a manual send
 
-This is a stateless local utility.
+Secondary success criteria:
+- failures are visible and debuggable
+- delivery history is inspectable
+- onboarding does not require terminal usage
 
-====================================== 6. SYSTEM ARCHITECTURE
+====================================== 6. CURRENT NON-GOALS
 ======================================
 
-Execution Flow:
+For the immediate next version:
+- no generalized "read anything from anywhere" platform
+- no broad multi-source ingestion beyond URL-first article sending
+- no billing
+- no team/shared accounts
+- no complex social/discovery layer
+- no large-scale automation logic
 
-User ↓ CLI (Java) ↓ HTTP Fetch (Substack Article) ↓ Save HTML locally ↓
-Calibre CLI (ebook-convert) ↓ Generate MOBI ↓ SMTP Email (Gmail) ↓
-Kindle Device
-
-All execution occurs locally.
-
-====================================== 7. SYSTEM COMPONENTS
+====================================== 7. CURRENT SYSTEM ARCHITECTURE
 ======================================
 
-1.  URL Input
-    -   CLI argument
-    -   Basic validation
-2.  HTML Fetcher
-    -   HTTP GET request
-    -   Save raw HTML locally
-    -   Assumes subscriber access
-3.  Conversion Engine
-    -   Uses: ebook-convert input.html output.mobi
-    -   Handles formatting and images
-    -   Delegates complexity to Calibre
-4.  Email Sender
-    -   Gmail SMTP
-    -   App password authentication
-    -   TLS on port 587
-    -   Attach .mobi file
+Current execution flow:
 
-====================================== 8. EXTERNAL DEPENDENCIES
+User
+-> CLI
+-> HTTP fetch
+-> article extraction
+-> HTML cleanup
+-> image localization
+-> Calibre conversion to EPUB
+-> EPUB Kindle sanitization
+-> Gmail SMTP delivery
+-> Kindle
+
+Current execution is local-first.
+
+Primary implementation components:
+- Readstack.java
+- KindleEmailSender.java
+- ReadstackConfig.java
+- Calibre ebook-convert
+- Gmail SMTP / Jakarta Mail
+
+====================================== 8. WHY THE PRODUCT SHOULD EVOLVE
 ======================================
 
--   Java 17+
--   Calibre installed (ebook-convert in PATH)
--   Gmail account with app password
--   Kindle email configured and approved
+The current CLI is a strong technical wedge, but a weak distribution
+surface.
 
-====================================== 9. ENGINEERING SPECIFICATION
+Problem with shipping the CLI:
+- high onboarding overhead
+- local Java/Calibre dependency burden
+- difficult support burden for non-technical users
+- credential setup is cumbersome
+
+Conclusion:
+The right next product step is a minimal hosted web app, while
+preserving the current CLI pipeline as the reference implementation.
+
+====================================== 9. PRODUCT DIRECTION
 ======================================
 
-Language: Java
+Recommended next product:
+A barebones web app that lets a signed-in user:
+- save their Kindle email address
+- paste an article URL
+- trigger conversion and delivery
+- inspect send history and failures
 
-Required capabilities: - HttpClient - ProcessBuilder - File IO - SMTP
-(Jakarta Mail)
+Core product framing:
+"The fastest path from article URL to Kindle."
 
-No frameworks. No Spring. No database.
+This keeps the wedge narrow and strong.
 
-====================================== 10. DIRECTORY STRUCTURE (MINIMAL)
+====================================== 10. PROPOSED WEB APP MVP
 ======================================
 
-/readstack SubstackToKindle.java jakarta.mail.jar activation.jar
+MVP user flow:
+1. User signs in
+2. User enters Kindle email once in settings
+3. User pastes article URL into a simple form
+4. User presses Send
+5. Backend creates a job
+6. Job runs the existing conversion pipeline
+7. EPUB is delivered to Kindle
+8. User sees success or failure in a history view
 
-Temporary files: - article.html - article.mobi
+MVP pages:
+- landing page
+- sign in page
+- dashboard with URL input
+- settings page for Kindle recipient
+- send history page
 
-====================================== 11. SECURITY NOTES
+MVP product scope:
+- one user account
+- one primary Kindle email per user
+- optional secondary test email
+- one-off article sends only
+
+====================================== 11. PROPOSED TECHNICAL STACK
 ======================================
 
-V1: - Gmail app password stored in plaintext - No encryption
+Recommended stack inside this repo:
 
-Future improvement: - Use environment variables - Secure credential
-storage
+Frontend:
+- Next.js
+- TypeScript
+- minimal UI, form-first
 
-====================================== 12. PERFORMANCE EXPECTATIONS
+Backend:
+- Next.js server routes or a small API layer in the same app
+
+Database:
+- Postgres
+
+ORM / DB access:
+- Prisma or Drizzle
+
+Auth:
+- NextAuth or Clerk
+
+Job execution:
+- start simple with app-managed background jobs or a worker process
+- move to a queue if needed after real usage appears
+
+Storage:
+- local during development
+- S3-compatible object storage in hosted environments if file retention matters
+
+Delivery:
+- keep current Gmail sender initially
+- long term move to a more operationally reliable mail provider if needed
+
+Why this stack:
+- low overhead
+- fast to ship
+- easy deployment
+- matches the product's current stage
+
+====================================== 12. PROPOSED DATA MODEL
 ======================================
 
-HTTP fetch: < 2 seconds Conversion: 5–20 seconds Email send: < 3 seconds
-Kindle delivery: 30–60 seconds
+Minimum schema:
 
-Total: under 1 minute
+users
+- id
+- email
+- created_at
+- updated_at
 
-====================================== 13. FUTURE ROADMAP
+delivery_destinations
+- id
+- user_id
+- kind: kindle | test
+- email
+- is_primary
+- created_at
+- updated_at
+
+jobs
+- id
+- user_id
+- source_url
+- normalized_url
+- status: queued | running | succeeded | failed
+- output_format
+- output_path_or_key
+- failure_reason
+- created_at
+- started_at
+- completed_at
+
+Optional later:
+- job_logs
+- source_domain
+- article_title
+- delivery_provider_response
+
+====================================== 13. PROPOSED APP ARCHITECTURE
 ======================================
 
-Phase 2: - Gmail automation - HTML cleanup - CLI flags - Auto-delete
-temp files
+Recommended near-term structure:
 
-Phase 3: - Article bundling - Daily digest mode - Metadata extraction
+/app
+  web UI and server routes
 
-Phase 4: - SaaS version - Multi-user system - Hosted backend - Stripe
-billing
+/lib
+  auth helpers
+  db access
+  job creation
 
-====================================== 14. DESIGN PRINCIPLES
+/worker
+  conversion and delivery job runner
+
+/core
+  existing article extraction / EPUB generation logic migrated from CLI
+
+Architectural principle:
+Preserve the current pipeline logic as reusable core code, then wrap it
+with a web interface and persistent state.
+
+This avoids rewriting the logic that already works.
+
+====================================== 14. MIGRATION STRATEGY
 ======================================
 
-1.  Completion > Elegance
-2.  Minimalism > Extensibility
-3.  Delegation > Reinvention
-4.  Statelessness > Persistence
-5.  CLI > UI
+Do not replace the CLI immediately.
 
-====================================== 15. DEFINITION OF DONE
+Recommended migration path:
+1. Keep the CLI working as the reference path
+2. Extract reusable conversion/delivery code into a shared core layer
+3. Build the web app around that core
+4. Use the web app as the user-facing product
+5. Retain the CLI for debugging and internal operations
+
+Reason:
+The CLI is the fastest way to debug edge cases while the web app is
+still immature.
+
+====================================== 15. EMAIL FORWARDING FLOW
 ======================================
 
-Done when: - URL passed - .mobi generated - Email sent - Appears on
-Kindle - Images visible - No manual steps beyond command
+Promising future direction:
+Users forward a Substack email to a Readstack-managed ingest address.
+Readstack identifies the user, extracts the article URL, converts it,
+and sends it to Kindle.
+
+Why this is promising:
+- highly natural behavior
+- closer to existing user habits
+- potentially even lower friction than a web UI
+
+Why this should not be the very next step:
+- forwarded-email parsing is messy
+- sender verification and abuse prevention become more important
+- URL extraction from forwarded bodies is inconsistent across clients
+- observability/debugging is harder than URL-form submission
+
+Recommendation:
+Treat email-ingest as phase 2, after the web app and database exist.
+
+====================================== 16. IMMEDIATE BUILD PRIORITIES
+======================================
+
+Priority order:
+1. Preserve current working CLI baseline
+2. Build minimal web app shell
+3. Add auth
+4. Add Postgres-backed user and destination storage
+5. Create job model and delivery history
+6. Wire existing conversion pipeline into background job execution
+7. Ship to a small number of users
+8. Use real failures to guide pipeline hardening
+
+====================================== 17. ENGINEERING PRINCIPLES
+======================================
+
+1. Preserve the working pipeline
+2. Reuse core logic instead of rewriting it
+3. Ship the thinnest useful UI first
+4. Add persistence only where it reduces user friction
+5. Use real user edge cases to drive cleanup logic
+6. Prefer operational clarity over architectural cleverness
+
+====================================== 18. DEFINITION OF DONE FOR NEXT PHASE
+======================================
+
+The next phase is done when:
+- a non-technical user can sign in without using a terminal
+- the user can save a Kindle email address
+- the user can paste a URL into a web form
+- a job is created and run successfully
+- the article is delivered to Kindle
+- the user can inspect success/failure history
+- the current CLI baseline remains intact as a protected fallback

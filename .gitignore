@@ -3,3 +3,10 @@
 articles/
 .cursor/
 .env
+.env.local
+.env.*
+node_modules/
+.next/
+dist/
+.turbo/
+coverage/
