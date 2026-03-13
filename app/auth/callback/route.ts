@@ -14,8 +14,16 @@ import { cookies } from "next/headers";
  * block third-party cookies or clear state between tabs.
  */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
+
+  // Railway (and most reverse proxies) forward the real public hostname via
+  // x-forwarded-host. Falling back to request.url would give localhost:8080.
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+  const origin = forwardedHost
+    ? `${forwardedProto}://${forwardedHost}`
+    : new URL(request.url).origin;
 
   // `next` lets us redirect somewhere other than the dashboard after sign-in,
   // useful later for deep-linking into a specific page post-auth.
