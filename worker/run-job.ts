@@ -1,11 +1,18 @@
 import { PrismaClient } from "@prisma/client";
 import { spawn } from "child_process";
 import path from "path";
+import { generateAndSend } from "./epub/node";
 
 const db = new PrismaClient();
 
 // Root of the repo — where Readstack.java and the ./readstack launcher live.
 const REPO_ROOT = path.resolve(__dirname, "..");
+
+// EPUB_GENERATOR controls which conversion path is used:
+//   "node"    — Java fetches/cleans HTML, Node generates EPUB via epub-gen-memory
+//   "calibre" — Java runs the full pipeline including Calibre (original behavior)
+// Defaults to "node". Set EPUB_GENERATOR=calibre in .env to revert at any time.
+const EPUB_GENERATOR = (process.env.EPUB_GENERATOR ?? "node").toLowerCase();
 
 export async function runNextJob(): Promise<boolean> {
   // Find the oldest queued job.
@@ -23,15 +30,14 @@ export async function runNextJob(): Promise<boolean> {
     return false; // nothing to do
   }
 
-  // Claim it atomically. If another worker instance grabbed it first this
-  // update will still succeed (there is no optimistic locking here), but the
-  // poll interval keeps concurrent races unlikely in practice.
+  // Claim the job. A race between two worker instances is unlikely given the
+  // poll interval, but the worst case is a duplicate send rather than data loss.
   await db.job.update({
     where: { id: job.id },
     data: { status: "running", startedAt: new Date() },
   });
 
-  console.log(`[job ${job.id}] running: ${job.sourceUrl}`);
+  console.log(`[job ${job.id}] running (${EPUB_GENERATOR}): ${job.sourceUrl}`);
 
   // Resolve the user's delivery destinations.
   const kindleDest = job.user.destinations.find((d) => d.kind === "kindle");
@@ -47,7 +53,12 @@ export async function runNextJob(): Promise<boolean> {
   }
 
   try {
-    await runPipeline(job.sourceUrl, recipients);
+    if (EPUB_GENERATOR === "calibre") {
+      await runCalrePipeline(job.sourceUrl, recipients);
+    } else {
+      await runNodePipeline(job.sourceUrl, recipients);
+    }
+
     await db.job.update({
       where: { id: job.id },
       data: { status: "completed", completedAt: new Date() },
@@ -62,17 +73,30 @@ export async function runNextJob(): Promise<boolean> {
   return true;
 }
 
-function runPipeline(url: string, recipients: string[]): Promise<void> {
+/**
+ * Node pipeline: Java fetches, cleans, and writes HTML to disk via --html-only,
+ * then epub-gen-memory converts to EPUB and nodemailer delivers it.
+ * No Calibre dependency — safe for any hosting environment.
+ */
+async function runNodePipeline(url: string, recipients: string[]): Promise<void> {
+  // Run the Java pipeline in HTML-only mode. It prints the output path as:
+  //   HTML_OUTPUT:/absolute/path/to/articles/title.html
+  const htmlPath = await runJavaHtmlOnly(url);
+  console.log(`  HTML ready: ${htmlPath}`);
+  await generateAndSend(htmlPath, recipients);
+}
+
+/**
+ * Calibre pipeline: Java runs the full pipeline (fetch, clean, Calibre EPUB,
+ * send). Original behavior, kept as a fallback via EPUB_GENERATOR=calibre.
+ */
+async function runCalrePipeline(url: string, recipients: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
-      // Override recipient list with this job's user destinations. The Java
-      // pipeline reads READSTACK_RECIPIENT_EMAILS and sends to all addresses.
       READSTACK_RECIPIENT_EMAILS: recipients.join(", "),
     };
 
-    // The ./readstack shell script compiles + runs the Java pipeline. It does
-    // `cd "$(dirname "$0")"` internally, so we run it from REPO_ROOT.
     const proc = spawn("./readstack", [url, "--send"], {
       cwd: REPO_ROOT,
       env,
@@ -94,10 +118,58 @@ function runPipeline(url: string, recipients: string[]): Promise<void> {
       if (code === 0) {
         resolve();
       } else {
-        // Prefer stderr for the error message; fall back to stdout tail.
         const detail = stderr.trim() || stdout.trim() || `exit code ${code}`;
         reject(new Error(detail));
       }
+    });
+
+    proc.on("error", reject);
+  });
+}
+
+/**
+ * Spawns the Java pipeline with --html-only. Parses the HTML_OUTPUT: line from
+ * stdout to return the absolute path of the written HTML file.
+ */
+function runJavaHtmlOnly(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn("./readstack", [url, "--html-only"], {
+      cwd: REPO_ROOT,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    proc.stdout.on("data", (chunk: Buffer) => {
+      const text = chunk.toString();
+      stdout += text;
+      process.stdout.write(`  > ${text}`);
+    });
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        const detail = stderr.trim() || stdout.trim() || `exit code ${code}`;
+        return reject(new Error(detail));
+      }
+
+      // The Java pipeline prints exactly one line starting with "HTML_OUTPUT:"
+      // which contains the absolute path to the cleaned HTML file.
+      const marker = stdout
+        .split("\n")
+        .find((line) => line.startsWith("HTML_OUTPUT:"));
+
+      if (!marker) {
+        return reject(
+          new Error("Java pipeline did not print an HTML_OUTPUT path. stdout: " + stdout)
+        );
+      }
+
+      resolve(marker.replace("HTML_OUTPUT:", "").trim());
     });
 
     proc.on("error", reject);

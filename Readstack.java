@@ -28,23 +28,29 @@ public class Readstack {
      * saves to articles/ folder, and converts to EPUB via Calibre's ebook-convert.
      */
     public static void main(String[] args) throws Exception {
-        // The CLI accepts a single URL plus one optional delivery flag. We parse
+        // The CLI accepts a single URL plus optional delivery/mode flags. We parse
         // flags manually because the project is intentionally dependency-light.
         boolean sendToKindle = false;
+        // --html-only: fetch, clean, and write HTML + images to disk, then stop.
+        // Used by the Node worker's epub-gen-memory path so it can take over
+        // EPUB generation and delivery without invoking Calibre at all.
+        boolean htmlOnly = false;
         String url = null;
         for (String arg : args) {
             if ("--send".equals(arg)) {
                 sendToKindle = true;
             } else if ("--nosend".equals(arg)) {
                 sendToKindle = false;
+            } else if ("--html-only".equals(arg)) {
+                htmlOnly = true;
             } else if (arg.startsWith("--")) {
                 System.out.println("Unknown option: " + arg);
-                System.out.println("Usage: java Readstack <substack-url> [--send|--nosend]");
+                System.out.println("Usage: java Readstack <substack-url> [--send|--nosend|--html-only]");
                 return;
             } else if (url == null) {
                 url = arg;
             } else {
-                System.out.println("Usage: java Readstack <substack-url> [--send|--nosend]");
+                System.out.println("Usage: java Readstack <substack-url> [--send|--nosend|--html-only]");
                 return;
             }
         }
@@ -102,10 +108,20 @@ public class Readstack {
         Files.createDirectories(articleImagesDir);
         html = prepareHtmlForEbook(html, effectiveUrl, articlesDir, baseName);
 
-        // Conversion is a two-step process:
-        // 1. Write the cleaned HTML so Calibre works from local, deterministic input.
-        // 2. Post-process the EPUB because Kindle is stricter than desktop readers.
+        // Write the cleaned HTML so conversion works from local, deterministic input.
         Files.writeString(htmlPath, html);
+
+        if (htmlOnly) {
+            // Print a machine-readable marker so the Node worker can parse the
+            // output path without fragile string matching on the rest of stdout.
+            System.out.println("HTML_OUTPUT:" + htmlPath.toAbsolutePath());
+            System.out.println("HTML generation complete: " + htmlPath);
+            return;
+        }
+
+        // Conversion is a two-step process:
+        // 1. Convert HTML to EPUB via Calibre.
+        // 2. Post-process the EPUB because Kindle is stricter than desktop readers.
         convertToEpub(htmlPath.toString(), epubPath.toString());
         sanitizeEpubForKindle(epubPath);
 
