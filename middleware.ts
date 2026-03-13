@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import type { CookieOptions } from "@supabase/ssr";
 
 /**
  * Runs on every non-static request. Creates a Supabase client with full
@@ -27,21 +28,21 @@ export async function middleware(request: NextRequest) {
       get(name: string) {
         return request.cookies.get(name)?.value;
       },
-      set(name: string, value: string, options: Record<string, unknown>) {
+      set(name: string, value: string, options: CookieOptions) {
         // Cookie writes require rebuilding the response so Next.js forwards
         // the new Set-Cookie header to the browser.
-        request.cookies.set({ name, value, ...options } as Parameters<typeof request.cookies.set>[0]);
+        request.cookies.set(name, value);
         response = NextResponse.next({
           request: { headers: request.headers },
         });
-        response.cookies.set({ name, value, ...options } as Parameters<typeof response.cookies.set>[0]);
+        response.cookies.set(name, value, options);
       },
-      remove(name: string, options: Record<string, unknown>) {
-        request.cookies.set({ name, value: "", ...options } as Parameters<typeof request.cookies.set>[0]);
+      remove(name: string, options: CookieOptions) {
+        request.cookies.set(name, "");
         response = NextResponse.next({
           request: { headers: request.headers },
         });
-        response.cookies.set({ name, value: "", ...options } as Parameters<typeof response.cookies.set>[0]);
+        response.cookies.set(name, "", { ...options, maxAge: 0 });
       },
     },
   });
