@@ -6,6 +6,7 @@
     "dev": "concurrently --names \"web,worker\" --prefix-colors \"cyan,yellow\" \"next dev\" \"cd worker && npm start\"",
     "dev:web": "next dev",
     "dev:worker": "cd worker && npm start",
+    "start:worker": "cd worker && npm start",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
