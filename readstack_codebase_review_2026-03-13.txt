@@ -1,0 +1,272 @@
+READSTACK CODEBASE REVIEW
+Date: Friday, March 13, 2026
+Scope: Full codebase audit — Java CLI pipeline, Next.js web app, worker, auth, data model, deployment
+
+====================================== SUMMARY
+======================================
+
+This review covers every layer of the Readstack codebase as of the date
+above. Issues are grouped by area and ranked by priority. Nothing here
+needs to be fixed immediately, but these are the places most likely to
+cause visible problems as the product moves toward real users.
+
+====================================== P0 — WILL BREAK IN PRODUCTION
+======================================
+
+1. No Supabase middleware (sessions expire silently)
+
+   There is no middleware.ts in the project. Supabase access tokens
+   expire (typically after 1 hour). Without middleware to intercept
+   requests and refresh the session cookie, the server-side
+   getSupabaseUser() call will start returning null after the token
+   expires. Users will be silently logged out with no explanation.
+
+   Files: middleware.ts (missing), lib/supabase/server.ts
+
+2. No auth callback route (magic link sign-in may not complete)
+
+   The login page sets emailRedirectTo to /login, but there is no
+   /auth/callback route handler to exchange the PKCE code for a session.
+   Supabase v2+ defaults to PKCE flow, which requires a server-side code
+   exchange. The client-side getSession() call in the useEffect may not
+   reliably complete the sign-in flow, especially across different
+   browsers and incognito/private windows.
+
+   Files: app/login/page.tsx, app/auth/callback/ (missing)
+
+3. Worker has no job timeout or orphan recovery
+
+   The worker spawns ./readstack and waits indefinitely. A hung HTTP
+   fetch, a Calibre conversion on a huge document, or a stuck SMTP
+   connection will block the worker forever, preventing any subsequent
+   jobs from running. If the worker process is killed mid-job, that job
+   stays status "running" permanently with no sweep mechanism to detect
+   and fail stale running jobs.
+
+   Files: worker/run-job.ts, worker/index.ts
+
+====================================== P1 — HIGH RISK, NEAR-TERM
+======================================
+
+4. Logout does not clear cookies
+
+   The server-side Supabase client's set() and remove() methods are
+   explicit no-ops. When /logout calls supabase.auth.signOut(), the
+   session is invalidated server-side, but the browser cookie is never
+   removed. Users may see stale auth state.
+
+   Files: app/logout/route.ts, lib/supabase/server.ts
+
+5. Non-atomic job claiming (race condition)
+
+   The worker does findFirst for queued jobs, then a separate update to
+   claim it. Two worker instances could both grab the same job. An
+   atomic UPDATE ... WHERE status = 'queued' LIMIT 1 RETURNING via
+   db.$queryRaw would be safer.
+
+   Files: worker/run-job.ts (lines 11-32)
+
+6. Worker missing @prisma/client in its own package.json
+
+   run-job.ts imports from @prisma/client but the worker's package.json
+   only lists tsx as a dependency. It silently depends on the parent
+   project's node_modules being reachable, which will break in any
+   isolated deployment (Docker, CI, etc.).
+
+   Files: worker/package.json, worker/run-job.ts
+
+7. Calibre + JDK deployment constraint
+
+   The hosted web app requires Node.js + Next.js + Prisma + Postgres +
+   JDK + Calibre + Gmail SMTP. Getting all of these into one deployable
+   unit (especially Calibre, which is a large desktop application) is a
+   significant challenge. Serverless platforms cannot run this.
+
+   Files: Readstack.java, readstack (shell launcher)
+
+8. No graceful shutdown on worker
+
+   The while(true) poll loop has no signal handler. SIGTERM from a
+   process manager kills the worker mid-execution, leaving jobs stuck
+   in "running" status with no cleanup.
+
+   Files: worker/index.ts
+
+9. Race condition on first user login
+
+   getCurrentUser() does findUnique then falls back to create. If a
+   user opens multiple tabs immediately after their first sign-in, two
+   concurrent requests could both try to create, causing a unique
+   constraint violation on the email field.
+
+   Files: lib/auth.ts
+
+====================================== P2 — MEDIUM RISK, CORRECTNESS
+======================================
+
+10. resolveImgSrc has a broken back-reference
+
+    Line 590-591 of Readstack.java: the replacement string references
+    capture group $8 but the regex only captures 7 groups. This silently
+    produces incorrect output when lazy-loaded images are encountered.
+
+    Files: Readstack.java (lines 589-592)
+
+11. Image content-type is ignored
+
+    downloadImagesToLocal determines file extension by checking if the
+    URL string contains .jpg, .gif, etc. A variable contentType is
+    declared but never assigned or used. CDN URLs (which Substack uses
+    heavily) often don't contain file extensions, so many images default
+    to .png regardless of actual format.
+
+    Files: Readstack.java (lines 632-676)
+
+12. getCurrentUser() runs in the root layout on every page
+
+    Every single page load, including the public landing page, hits
+    Supabase auth AND the Postgres database. Unauthenticated visitors
+    pay this cost for no reason.
+
+    Files: app/layout.tsx (line 17)
+
+13. No rate limiting on API routes
+
+    /api/jobs and /api/settings/destinations have no throttling. A user
+    or attacker could create thousands of queued jobs, overwhelming the
+    worker and email infrastructure.
+
+    Files: app/api/jobs/route.ts, app/api/settings/destinations/route.ts
+
+14. SSRF risk in job creation
+
+    URL validation only checks for http:// or https:// prefix. A user
+    could submit internal network URLs (e.g., cloud metadata endpoints)
+    that the Java pipeline would fetch.
+
+    Files: app/api/jobs/route.ts (lines 35-39)
+
+15. Hydration mismatch on dates in history page
+
+    new Date(job.createdAt).toLocaleString() renders server-side with
+    the server's locale. The client would hydrate with the user's locale,
+    producing React hydration mismatch warnings and visual flicker.
+
+    Files: app/history/page.tsx (line 52)
+
+16. No HTTP timeouts in Java pipeline
+
+    Both downloadHtml and fetchImageBytes create HttpClient instances
+    without connectTimeout. A slow or unresponsive server will hang the
+    entire pipeline indefinitely.
+
+    Files: Readstack.java (lines 124-141, 682-698)
+
+17. Aggressive cleanup can destroy article content
+
+    aggressiveClean replaces ALL remaining URLs with [link] and strips
+    domain-like text from visible content. An article about a website
+    will have its substantive content mangled.
+
+    Files: Readstack.java (lines 443-507)
+
+18. Settings delete-then-recreate pattern
+
+    destinations/route.ts deletes ALL destinations then recreates them
+    inside a transaction. If the createMany fails after deleteMany
+    succeeds (e.g., serialization error under load), the user loses
+    their delivery destinations.
+
+    Files: app/api/settings/destinations/route.ts (lines 52-63)
+
+====================================== P3 — LOW RISK, CLEANUP
+======================================
+
+19. No loading or error boundaries
+
+    Protected pages (dashboard, settings, history) do async data
+    fetching but have no loading.tsx or error.tsx files. Users see a
+    blank page during loading and an unhandled error screen on failures.
+
+    Files: app/dashboard/, app/settings/, app/history/
+
+20. Status and kind fields are untyped strings
+
+    Neither the Job status field nor the DeliveryDestination kind field
+    uses a Prisma enum. Typos like "complete" instead of "completed"
+    pass through with no database-level protection.
+
+    Files: prisma/schema.prisma
+
+21. User ID @default(cuid()) is misleading
+
+    The User model declares a cuid default, but getCurrentUser() always
+    explicitly sets the ID from Supabase's UUID. The default never fires,
+    which is confusing for future contributors.
+
+    Files: prisma/schema.prisma, lib/auth.ts
+
+22. No disk cleanup for generated files
+
+    The Java pipeline writes HTML files and downloaded images to
+    articles/ on every job. There is no cleanup mechanism, so disk usage
+    grows indefinitely in a hosted environment.
+
+    Files: Readstack.java (lines 90-93)
+
+23. Gmail sending limits
+
+    Gmail SMTP is limited to ~500 sends/day for consumer accounts. As
+    user count grows, this becomes a hard ceiling.
+
+    Files: KindleEmailSender.java
+
+24. No observability
+
+    No structured logging, no health check endpoint, no metrics on queue
+    depth, job duration, or failure rates. Diagnosing production issues
+    requires querying the database directly.
+
+    Files: worker/index.ts, worker/run-job.ts
+
+25. Compilation errors silently suppressed in launcher
+
+    The readstack shell script suppresses javac errors with
+    >/dev/null 2>&1 || true. If a Java file has a syntax error,
+    compilation fails silently and the script runs a stale .class file
+    or fails with a confusing class-not-found error.
+
+    Files: readstack (line 6)
+
+26. No unique constraint on (userId, kind) for destinations
+
+    A user could end up with multiple kindle destinations through raw
+    DB access or a race condition. The settings route uses
+    delete-and-recreate inside a transaction, but there is no DB-level
+    constraint enforcing uniqueness.
+
+    Files: prisma/schema.prisma
+
+27. No email verification for Kindle addresses
+
+    Users can set any email as their Kindle address. There is no
+    verification that it is actually a valid Kindle address, which could
+    lead to bounced emails or delivery to unintended recipients.
+
+    Files: app/api/settings/destinations/route.ts
+
+====================================== RECOMMENDED SEQUENCE
+======================================
+
+If tackling these in order:
+
+1. Add Supabase middleware for session refresh (#1)
+2. Add /auth/callback route for PKCE code exchange (#2)
+3. Fix logout to properly clear cookies (#4)
+4. Add job execution timeout and orphan recovery (#3, #8)
+5. Make job claiming atomic (#5)
+6. Add @prisma/client to worker dependencies (#6)
+7. Fix resolveImgSrc back-reference bug (#10)
+8. Add HTTP timeouts to Java pipeline (#16)
+9. Add loading/error boundaries (#19)
+10. Everything else as the product matures

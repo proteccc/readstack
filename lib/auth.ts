@@ -4,10 +4,8 @@ import { getSupabaseUser } from "@/lib/supabase/server";
 /**
  * Returns the current authenticated Prisma user, or null if not signed in.
  *
- * This function:
- * - Reads the Supabase auth user from cookies
- * - Upserts a corresponding row in the Prisma User table
- * - Returns the Prisma User record for use elsewhere in the app
+ * Uses findUnique on the common path (returning users) to avoid a write lock
+ * on every request. Falls back to create only on first sign-in.
  */
 export async function getCurrentUser() {
   const supabaseUser = await getSupabaseUser();
@@ -16,17 +14,19 @@ export async function getCurrentUser() {
     return null;
   }
 
-  const user = await db.user.upsert({
+  const existing = await db.user.findUnique({
     where: { id: supabaseUser.id },
-    update: {
-      email: supabaseUser.email,
-    },
-    create: {
+  });
+
+  if (existing) {
+    return existing;
+  }
+
+  return db.user.create({
+    data: {
       id: supabaseUser.id,
       email: supabaseUser.email,
     },
   });
-
-  return user;
 }
 

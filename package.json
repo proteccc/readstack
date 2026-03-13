@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently --names \"web,worker\" --prefix-colors \"cyan,yellow\" \"next dev\" \"cd worker && npm start\"",
+    "dev:web": "next dev",
+    "dev:worker": "cd worker && npm start",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -20,6 +22,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "concurrently": "^9.2.1",
     "prisma": "^6.19.2",
     "typescript": "^5.9.3"
   }
