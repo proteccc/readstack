@@ -8,7 +8,7 @@
 nixPkgs = ["jdk17_headless", "nodejs_20"]
 
 [phases.install]
-cmds = ["npm install", "cd worker && npm install"]
+cmds = ["npm install", "npm install --prefix worker"]
 
 [phases.build]
 cmds = ["npm run build"]
