@@ -3,5 +3,20 @@
 # then run the CLI with the same classpath. Compilation errors are suppressed here
 # because the project historically relied on this script as a convenience wrapper.
 cd "$(dirname "$0")"
-javac -encoding UTF-8 -cp "lib/*:." *.java >/dev/null 2>&1 || true
-exec java -cp "lib/*:." Readstack "$@"
+
+# Locate java — try PATH first, then search the Nix store (Railway/Nixpacks
+# installs packages into /nix/store and they may not be on PATH at runtime).
+JAVA_BIN=$(which java 2>/dev/null)
+if [ -z "$JAVA_BIN" ]; then
+  JAVA_BIN=$(find /nix/store -name "java" -path "*/bin/java" -type f 2>/dev/null | head -1)
+fi
+if [ -z "$JAVA_BIN" ]; then
+  echo "Error: java binary not found. Ensure jdk is installed in nixpacks.toml." >&2
+  exit 1
+fi
+
+"$JAVA_BIN" -cp "lib/*:." javac_placeholder >/dev/null 2>&1 || true
+# Recompile sources using the found java's companion javac
+JAVAC_BIN="$(dirname "$JAVA_BIN")/javac"
+"$JAVAC_BIN" -encoding UTF-8 -cp "lib/*:." *.java >/dev/null 2>&1 || true
+exec "$JAVA_BIN" -cp "lib/*:." Readstack "$@"
