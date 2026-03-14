@@ -103,8 +103,8 @@ async function sendEpub(
 
   const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false, // STARTTLS on port 587 (more widely allowed than SSL/465)
     auth: {
       user: senderEmail,
       pass: senderPassword,
