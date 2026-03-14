@@ -1,17 +1,16 @@
 # Nixpacks build configuration for Railway deployment.
 #
-# Both the web app and worker services use this repo root.
-# JDK is required by the worker to run the Java HTML-extraction pipeline
-# (Readstack.java via the ./readstack script). The web app service ignores it.
+# The worker now uses Node.js exclusively (Readability.js for article
+# extraction, epub-gen-memory for EPUB generation). No JDK required.
 
 [phases.setup]
-nixPkgs = ["jdk", "nodejs_20"]
+nixPkgs = ["nodejs_20"]
 
 [phases.install]
 cmds = ["npm install", "npm install --prefix worker"]
 
 [phases.build]
-cmds = ["which java || echo 'WARNING: java not found after nixpkgs install'", "java -version", "npm run build"]
+cmds = ["npm run build"]
 
 [start]
 cmd = "npm start"

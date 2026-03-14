@@ -2,10 +2,11 @@ import { PrismaClient } from "@prisma/client";
 import { spawn } from "child_process";
 import path from "path";
 import { generateAndSend } from "./epub/node";
+import { fetchArticle } from "./fetch-article";
 
 const db = new PrismaClient();
 
-// Root of the repo — where Readstack.java and the ./readstack launcher live.
+// Root of the repo — used by the Calibre fallback path only.
 const REPO_ROOT = path.resolve(__dirname, "..");
 
 // EPUB_GENERATOR controls which conversion path is used:
@@ -74,14 +75,11 @@ export async function runNextJob(): Promise<boolean> {
 }
 
 /**
- * Node pipeline: Java fetches, cleans, and writes HTML to disk via --html-only,
- * then epub-gen-memory converts to EPUB and nodemailer delivers it.
- * No Calibre dependency — safe for any hosting environment.
+ * Node pipeline: fetches and extracts the article using Readability.js
+ * (no Java required), then converts to EPUB and delivers via nodemailer.
  */
 async function runNodePipeline(url: string, recipients: string[]): Promise<void> {
-  // Run the Java pipeline in HTML-only mode. It prints the output path as:
-  //   HTML_OUTPUT:/absolute/path/to/articles/title.html
-  const htmlPath = await runJavaHtmlOnly(url);
+  const htmlPath = await fetchArticle(url);
   console.log(`  HTML ready: ${htmlPath}`);
   await generateAndSend(htmlPath, recipients);
 }
@@ -127,54 +125,6 @@ async function runCalrePipeline(url: string, recipients: string[]): Promise<void
   });
 }
 
-/**
- * Spawns the Java pipeline with --html-only. Parses the HTML_OUTPUT: line from
- * stdout to return the absolute path of the written HTML file.
- */
-function runJavaHtmlOnly(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("./readstack", [url, "--html-only"], {
-      cwd: REPO_ROOT,
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    proc.stdout.on("data", (chunk: Buffer) => {
-      const text = chunk.toString();
-      stdout += text;
-      process.stdout.write(`  > ${text}`);
-    });
-    proc.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-
-    proc.on("close", (code) => {
-      if (code !== 0) {
-        const detail = stderr.trim() || stdout.trim() || `exit code ${code}`;
-        return reject(new Error(detail));
-      }
-
-      // The Java pipeline prints exactly one line starting with "HTML_OUTPUT:"
-      // which contains the absolute path to the cleaned HTML file.
-      const marker = stdout
-        .split("\n")
-        .find((line) => line.startsWith("HTML_OUTPUT:"));
-
-      if (!marker) {
-        return reject(
-          new Error("Java pipeline did not print an HTML_OUTPUT path. stdout: " + stdout)
-        );
-      }
-
-      resolve(marker.replace("HTML_OUTPUT:", "").trim());
-    });
-
-    proc.on("error", reject);
-  });
-}
 
 async function fail(jobId: string, reason: string): Promise<void> {
   await db.job.update({
