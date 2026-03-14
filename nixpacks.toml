@@ -5,7 +5,7 @@
 # (Readstack.java via the ./readstack script). The web app service ignores it.
 
 [phases.setup]
-nixPkgs = ["jdk17_headless", "nodejs_20"]
+nixPkgs = ["jdk17", "nodejs_20"]
 
 [phases.install]
 cmds = ["npm install", "npm install --prefix worker"]
