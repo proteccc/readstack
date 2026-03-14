@@ -5,13 +5,13 @@
 # (Readstack.java via the ./readstack script). The web app service ignores it.
 
 [phases.setup]
-nixPkgs = ["jdk17", "nodejs_20"]
+nixPkgs = ["jdk", "nodejs_20"]
 
 [phases.install]
 cmds = ["npm install", "npm install --prefix worker"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = ["which java || echo 'WARNING: java not found after nixpkgs install'", "java -version", "npm run build"]
 
 [start]
 cmd = "npm start"
