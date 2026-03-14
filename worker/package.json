@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "tsx index.ts"
+    "start": "node_modules/.bin/tsx index.ts"
   },
   "dependencies": {
     "epub-gen-memory": "^1.1.2",
