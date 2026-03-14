@@ -104,7 +104,8 @@ async function sendEpub(
   const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
-    secure: false, // STARTTLS on port 587 (more widely allowed than SSL/465)
+    secure: false, // STARTTLS on port 587
+    family: 4,     // Force IPv4 — Railway does not support IPv6
     auth: {
       user: senderEmail,
       pass: senderPassword,
