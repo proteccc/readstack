@@ -15,27 +15,40 @@ export function useJobStatus(jobId: string | null) {
     setPhase("processing");
     setFailureReason(null);
 
-    const poll = setInterval(async () => {
+    let done = false;
+
+    async function check() {
+      if (done) return;
       try {
         const res = await fetch(`/api/jobs/${jobId}`);
-        if (!res.ok) return; // keep polling on transient errors
+        if (!res.ok) return;
         const data = await res.json();
-
-        // Both "queued" and "running" mean still in-progress — keep polling.
         if (data.status === "completed") {
+          done = true;
           setPhase("success");
-          clearInterval(poll);
         } else if (data.status === "failed") {
+          done = true;
           setPhase("error");
           setFailureReason(data.failureReason ?? null);
-          clearInterval(poll);
         }
       } catch {
         // Network error — keep polling.
       }
-    }, 2000);
+    }
 
-    return () => clearInterval(poll);
+    const poll = setInterval(check, 2000);
+
+    // Mobile browsers suspend setInterval when the tab is backgrounded.
+    // Re-check immediately when the user returns to the tab.
+    function onVisible() {
+      if (document.visibilityState === "visible") check();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [jobId]);
 
   return { phase, failureReason };

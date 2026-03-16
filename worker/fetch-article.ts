@@ -20,6 +20,7 @@ const ARTICLES_DIR = path.join(REPO_ROOT, "articles");
 export interface FetchedArticle {
   htmlPath: string;
   title: string;
+  byline: string | null;
 }
 
 /**
@@ -92,7 +93,7 @@ export async function fetchArticle(url: string): Promise<FetchedArticle> {
   console.log(`  Article extracted: "${title}"`);
   console.log(`  HTML written: ${htmlPath}`);
 
-  return { htmlPath, title };
+  return { htmlPath, title, byline: article.byline ?? null };
 }
 
 function escapeHtml(str: string): string {

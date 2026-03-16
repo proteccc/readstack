@@ -23,18 +23,19 @@ import path from "path";
  */
 export async function generateAndSend(
   htmlPath: string,
-  recipients: string[]
+  recipients: string[],
+  byline: string | null = null
 ): Promise<void> {
   let epubBuffer: Buffer;
   try {
-    epubBuffer = await buildEpub(htmlPath);
+    epubBuffer = await buildEpub(htmlPath, byline);
   } catch {
     throw new Error("CONVERT_ERROR");
   }
   await sendEpub(epubBuffer, htmlPath, recipients);
 }
 
-async function buildEpub(htmlPath: string): Promise<Buffer> {
+async function buildEpub(htmlPath: string, byline: string | null = null): Promise<Buffer> {
   let html = readFileSync(htmlPath, "utf-8");
 
   // Extract title from the <title> tag for EPUB metadata.
@@ -65,7 +66,7 @@ async function buildEpub(htmlPath: string): Promise<Buffer> {
   const rawBuffer = await epub(
     {
       title,
-      author: "Readstack",
+      author: byline ? `By ${byline}, from Readstack by DispatchPigeon.com` : "Readstack by DispatchPigeon.com",
       lang: "en",
       version: 2,                  // EPUB 2 for best Kindle compatibility
       prependChapterTitles: false,  // title is already in the body HTML

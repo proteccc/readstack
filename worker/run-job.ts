@@ -85,11 +85,11 @@ export async function runNextJob(): Promise<boolean> {
  * (no Java required), then converts to EPUB and delivers via nodemailer.
  */
 async function runNodePipeline(jobId: string, url: string, recipients: string[]): Promise<void> {
-  const { htmlPath, title } = await fetchArticle(url);
+  const { htmlPath, title, byline } = await fetchArticle(url);
   // Write title to job record so the frontend can display it in history.
   await db.job.update({ where: { id: jobId }, data: { title } });
   console.log(`  HTML ready: ${htmlPath}`);
-  await generateAndSend(htmlPath, recipients);
+  await generateAndSend(htmlPath, recipients, byline);
 }
 
 /**
