@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 export type JobPhase = "processing" | "success" | "error";
 
 export function useJobStatus(jobId: string | null) {
   const [phase, setPhase] = useState<JobPhase>("processing");
   const [failureReason, setFailureReason] = useState<string | null>(null);
+
+  // Stable ref so the manual check button can trigger a poll without
+  // needing to be inside the effect closure.
+  const checkRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     if (!jobId) return;
@@ -36,6 +40,8 @@ export function useJobStatus(jobId: string | null) {
       }
     }
 
+    checkRef.current = check;
+
     function onVisible() {
       if (document.visibilityState === "visible") check();
     }
@@ -51,8 +57,11 @@ export function useJobStatus(jobId: string | null) {
       clearInterval(intervalId);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
+      checkRef.current = () => {};
     };
   }, [jobId]);
 
-  return { phase, failureReason };
+  const manualCheck = useCallback(() => checkRef.current(), []);
+
+  return { phase, failureReason, manualCheck };
 }

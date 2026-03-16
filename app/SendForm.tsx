@@ -152,7 +152,7 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
   }, [step]);
 
   const jobId = step.kind === "processing" ? step.jobId : null;
-  const { phase, failureReason } = useJobStatus(jobId);
+  const { phase, failureReason, manualCheck } = useJobStatus(jobId);
 
   // Transition out of processing when job completes.
   useEffect(() => {
@@ -328,6 +328,14 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
             <PipelineStep key={s.label} label={s.label} state={s.state} />
           ))}
         </div>
+        <button
+          type="button"
+          className="btn-ghost"
+          onClick={manualCheck}
+          style={{ fontSize: "0.82rem", alignSelf: "center", marginTop: 4 }}
+        >
+          Tap to check status
+        </button>
       </div>
     );
   }
