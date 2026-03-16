@@ -11,7 +11,7 @@
  */
 
 import epub from "epub-gen-memory";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { readFileSync, writeFileSync } from "fs";
 import path from "path";
 
@@ -92,25 +92,17 @@ async function sendEpub(
   htmlPath: string,
   recipients: string[]
 ): Promise<void> {
-  const senderEmail = process.env.READSTACK_SMTP_EMAIL;
-  const senderPassword = process.env.READSTACK_SMTP_PASSWORD;
+  const apiKey = process.env.RESEND_API_KEY;
+  const senderEmail = process.env.READSTACK_FROM_EMAIL;
 
-  if (!senderEmail || !senderPassword) {
-    throw new Error(
-      "READSTACK_SMTP_EMAIL and READSTACK_SMTP_PASSWORD must be set for the Node EPUB generator path."
-    );
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY must be set.");
+  }
+  if (!senderEmail) {
+    throw new Error("READSTACK_FROM_EMAIL must be set (e.g. readstack@yourdomain.com).");
   }
 
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // STARTTLS on port 587
-    family: 4,     // Force IPv4 — Railway does not support IPv6
-    auth: {
-      user: senderEmail,
-      pass: senderPassword,
-    },
-  });
+  const resend = new Resend(apiKey);
 
   // Derive the filename from the HTML path for the email attachment.
   const epubFilename = path.basename(htmlPath).replace(/\.html$/i, ".epub");
@@ -118,7 +110,7 @@ async function sendEpub(
   // Send separately to each recipient — Kindle and regular inboxes can
   // behave differently and per-recipient sends make failures easier to trace.
   for (const recipient of recipients) {
-    await transporter.sendMail({
+    const { error } = await resend.emails.send({
       from: senderEmail,
       to: recipient,
       subject: "Readstack delivery",
@@ -127,10 +119,12 @@ async function sendEpub(
         {
           filename: epubFilename,
           content: epubBuffer,
-          contentType: "application/epub+zip",
         },
       ],
     });
+    if (error) {
+      throw new Error(`Resend error for ${recipient}: ${error.message}`);
+    }
     console.log(`  Delivered to: ${recipient}`);
   }
 }
