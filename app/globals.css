@@ -18,6 +18,7 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(186, 74, 0, 0.12), transparent 28%),
     linear-gradient(180deg, #f8f4eb 0%, #eee5d8 100%);
@@ -224,6 +225,10 @@ code {
   font-size: 0.8rem;
   font-weight: 600;
   border: 1px solid transparent;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .chip-amber {
   background: rgba(186, 74, 0, 0.1);
@@ -583,6 +588,19 @@ code {
   display: none;
 }
 @media (max-width: 640px) {
+  /* Hide desktop nav links — bottom tab bar takes over */
+  .nav-desktop {
+    display: none;
+  }
+
+  /* Stack URL input + button vertically */
+  .url-row {
+    flex-direction: column;
+  }
+  .url-row .btn-primary {
+    width: 100%;
+  }
+
   .tab-bar {
     display: flex;
     position: fixed;

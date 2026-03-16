@@ -35,7 +35,7 @@ export function NavUser() {
     <>
       {/* Desktop nav links */}
       {signedIn ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <div className="nav-desktop" style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <Link href="/" className={`nav-link${pathname === "/" ? " nav-link-active" : ""}`}>
             Send
           </Link>
