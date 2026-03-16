@@ -1,13 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function AuthCallbackPage() {
+  const [debugInfo, setDebugInfo] = useState<string>("");
+
   useEffect(() => {
+    // Capture URL info immediately before any processing
+    const search = window.location.search;
+    const hash = window.location.hash;
+    setDebugInfo(`search: ${search || "(empty)"} | hash: ${hash || "(empty)"}`);
+
     async function handleCallback() {
       const supabase = getSupabaseBrowserClient();
-      const searchParams = new URLSearchParams(window.location.search);
+      const searchParams = new URLSearchParams(search);
       const next = searchParams.get("next") ?? "/";
 
       // 1. PKCE flow — code in search params (desktop browsers)
@@ -28,7 +35,7 @@ export default function AuthCallbackPage() {
       }
 
       // 3. Implicit flow — access_token in URL hash fragment (mobile WebViews)
-      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const hashParams = new URLSearchParams(hash.slice(1));
       const access_token = hashParams.get("access_token");
       const refresh_token = hashParams.get("refresh_token");
       if (access_token && refresh_token) {
@@ -44,7 +51,8 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      window.location.replace("/login?error=missing_code");
+      // Don't auto-redirect — show debug info so we can see what arrived
+      // window.location.replace("/login?error=missing_code");
     }
 
     handleCallback();
@@ -56,6 +64,11 @@ export default function AuthCallbackPage() {
         <p className="muted" style={{ margin: 0, fontSize: "0.9rem" }}>
           Signing you in…
         </p>
+        {debugInfo && (
+          <p style={{ margin: 0, fontSize: "0.75rem", wordBreak: "break-all", color: "#666", fontFamily: "monospace" }}>
+            {debugInfo}
+          </p>
+        )}
       </div>
     </div>
   );
