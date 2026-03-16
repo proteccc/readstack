@@ -115,11 +115,11 @@ export default function LoginPage() {
                 className="setup-input"
                 type="text"
                 inputMode="numeric"
-                placeholder="123456"
+                placeholder="12345678"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 autoFocus
-                maxLength={6}
+                maxLength={8}
               />
             </div>
 
