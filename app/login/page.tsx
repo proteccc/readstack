@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -9,16 +9,16 @@ type Status = "idle" | "sending" | "sent" | "error";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<Status>("idle");
-  const [error, setError] = useState<string | null>(() => {
-    const e = searchParams.get("error");
-    if (e === "missing_code") return "The sign-in link was missing a code. Try requesting a new one.";
-    if (e === "auth_failed") return "The sign-in link may have expired or already been used. Try requesting a new one.";
-    if (e === "misconfigured") return "Server configuration error. Please contact support.";
-    return null;
-  });
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const e = new URLSearchParams(window.location.search).get("error");
+    if (e === "missing_code") setError("The sign-in link was missing a code. Try requesting a new one.");
+    else if (e === "auth_failed") setError("The sign-in link may have expired or already been used. Try requesting a new one.");
+    else if (e === "misconfigured") setError("Server configuration error. Please contact support.");
+  }, []);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();

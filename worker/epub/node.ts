@@ -95,7 +95,7 @@ function sanitizeFilename(title: string): string {
   return (
     title
       .replace(/[^\w\s-]/g, "")
-      .replace(/\s+/g, "_")
+      .replace(/\s+/g, " ")
       .slice(0, 60)
       .trim() || "article"
   );

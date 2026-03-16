@@ -11,23 +11,23 @@ export function useJobStatus(jobId: string | null) {
   useEffect(() => {
     if (!jobId) return;
 
-    // Reset state when a new job starts.
     setPhase("processing");
     setFailureReason(null);
 
-    let done = false;
+    let intervalId: ReturnType<typeof setInterval>;
 
     async function check() {
-      if (done) return;
       try {
         const res = await fetch(`/api/jobs/${jobId}`);
         if (!res.ok) return;
         const data = await res.json();
         if (data.status === "completed") {
-          done = true;
+          clearInterval(intervalId);
+          document.removeEventListener("visibilitychange", onVisible);
           setPhase("success");
         } else if (data.status === "failed") {
-          done = true;
+          clearInterval(intervalId);
+          document.removeEventListener("visibilitychange", onVisible);
           setPhase("error");
           setFailureReason(data.failureReason ?? null);
         }
@@ -36,18 +36,21 @@ export function useJobStatus(jobId: string | null) {
       }
     }
 
-    const poll = setInterval(check, 2000);
-
-    // Mobile browsers suspend setInterval when the tab is backgrounded.
-    // Re-check immediately when the user returns to the tab.
     function onVisible() {
       if (document.visibilityState === "visible") check();
     }
+
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    // Check immediately, then every 2s.
+    check();
+    intervalId = setInterval(check, 2000);
 
     return () => {
-      clearInterval(poll);
+      clearInterval(intervalId);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
     };
   }, [jobId]);
 
