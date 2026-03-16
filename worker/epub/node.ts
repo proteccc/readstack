@@ -15,8 +15,6 @@ import { Resend } from "resend";
 import { readFileSync, writeFileSync } from "fs";
 import path from "path";
 
-const REPO_ROOT = path.resolve(__dirname, "../..");
-const ARTICLES_DIR = path.join(REPO_ROOT, "articles");
 
 /**
  * Generates an EPUB from the cleaned HTML file at htmlPath and sends it to
@@ -27,7 +25,12 @@ export async function generateAndSend(
   htmlPath: string,
   recipients: string[]
 ): Promise<void> {
-  const epubBuffer = await buildEpub(htmlPath);
+  let epubBuffer: Buffer;
+  try {
+    epubBuffer = await buildEpub(htmlPath);
+  } catch {
+    throw new Error("CONVERT_ERROR");
+  }
   await sendEpub(epubBuffer, htmlPath, recipients);
 }
 
@@ -123,7 +126,8 @@ async function sendEpub(
       ],
     });
     if (error) {
-      throw new Error(`Resend error for ${recipient}: ${error.message}`);
+      console.error(`  Resend error for ${recipient}: ${error.message}`);
+      throw new Error("SMTP_ERROR");
     }
     console.log(`  Delivered to: ${recipient}`);
   }

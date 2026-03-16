@@ -22,18 +22,27 @@ const ARTICLES_DIR = path.join(REPO_ROOT, "articles");
  * writes a clean HTML file to disk, and returns its absolute path.
  */
 export async function fetchArticle(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      // Identify ourselves clearly; some sites block generic fetch user-agents.
-      "User-Agent":
-        "Mozilla/5.0 (compatible; Readstack/1.0; +https://readstack.app)",
-      Accept: "text/html,application/xhtml+xml",
-    },
-    redirect: "follow",
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        // Identify ourselves clearly; some sites block generic fetch user-agents.
+        "User-Agent":
+          "Mozilla/5.0 (compatible; Readstack/1.0; +https://readstack.app)",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+    });
+  } catch {
+    throw new Error("FETCH_ERROR");
+  }
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch article (${response.status}): ${url}`);
+    const status = response.status;
+    if (status === 404) throw new Error("FETCH_BAD_URL");
+    if (status === 402) throw new Error("FETCH_PAYWALLED");
+    if (status === 403 || status === 429) throw new Error("FETCH_BLOCKED");
+    throw new Error("FETCH_ERROR");
   }
 
   const html = await response.text();
@@ -44,9 +53,7 @@ export async function fetchArticle(url: string): Promise<string> {
   const article = reader.parse();
 
   if (!article) {
-    throw new Error(
-      `Readability could not extract article content from: ${url}`
-    );
+    throw new Error("FETCH_ERROR");
   }
 
   const title = article.title?.trim() || "Readstack Article";
