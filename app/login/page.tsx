@@ -5,18 +5,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type Status = "idle" | "sending" | "sent" | "error";
+type Status = "idle" | "sending" | "code_sent" | "verifying" | "error";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const e = new URLSearchParams(window.location.search).get("error");
-    if (e === "missing_code") setError("The sign-in link was missing a code. Try requesting a new one.");
-    else if (e === "auth_failed") setError("The sign-in link may have expired or already been used. Try requesting a new one.");
+    if (e === "auth_failed") setError("The sign-in link may have expired or already been used. Try requesting a new code.");
     else if (e === "misconfigured") setError("Server configuration error. Please contact support.");
   }, []);
 
@@ -27,7 +27,7 @@ export default function LoginPage() {
     });
   }, [router]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSendCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmedEmail = email.trim();
@@ -44,12 +44,7 @@ export default function LoginPage() {
       const supabase = getSupabaseBrowserClient();
       const { error: signInError } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
-        options: {
-          emailRedirectTo:
-            typeof window !== "undefined"
-              ? `${window.location.origin}/auth/callback`
-              : undefined,
-        },
+        options: { shouldCreateUser: true },
       });
 
       if (signInError) {
@@ -58,29 +53,101 @@ export default function LoginPage() {
         return;
       }
 
-      setStatus("sent");
+      setStatus("code_sent");
     } catch {
-      setError("Something went wrong while sending the login link.");
+      setError("Something went wrong while sending the code.");
       setStatus("error");
     }
   }
 
-  if (status === "sent") {
+  async function handleVerifyCode(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
+      setError("Please enter the code from your email.");
+      setStatus("error");
+      return;
+    }
+
+    setStatus("verifying");
+    setError(null);
+
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: trimmedCode,
+        type: "email",
+      });
+
+      if (verifyError) {
+        setError("Incorrect or expired code. Check your email and try again.");
+        setStatus("code_sent");
+        return;
+      }
+
+      router.replace("/");
+    } catch {
+      setError("Something went wrong while verifying the code.");
+      setStatus("code_sent");
+    }
+  }
+
+  if (status === "code_sent" || status === "verifying") {
     return (
       <div className="send-card">
-        <div className="setup-card" style={{ textAlign: "center", gap: 16 }}>
-          <div style={{ fontSize: "2rem" }}>✉️</div>
-          <div style={{ display: "grid", gap: 6 }}>
-            <strong style={{ fontSize: "1.05rem" }}>Check your email</strong>
+        <div className="setup-card">
+          <div style={{ display: "grid", gap: 4 }}>
+            <h2 style={{ margin: 0, fontWeight: 700, letterSpacing: "-0.02em" }}>
+              Check your email
+            </h2>
             <p className="muted" style={{ margin: 0, fontSize: "0.9rem" }}>
-              We sent a sign-in link to{" "}
+              We sent a 6-digit code to{" "}
               <strong style={{ color: "var(--text)" }}>{email}</strong>
             </p>
           </div>
-          <p className="muted" style={{ margin: 0, fontSize: "0.82rem" }}>
-            Click the link in that email and you&apos;ll be signed in. The link
-            expires in 1 hour.
-          </p>
+
+          <form onSubmit={handleVerifyCode} style={{ display: "grid", gap: 12 }}>
+            <div style={{ display: "grid", gap: 6 }}>
+              <span className="setup-eyebrow">Enter code</span>
+              <input
+                className="setup-input"
+                type="text"
+                inputMode="numeric"
+                placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                autoFocus
+                maxLength={6}
+              />
+            </div>
+
+            {error && (
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "#c0392b" }}>
+                {error}
+              </p>
+            )}
+
+            <button
+              className="btn-primary"
+              type="submit"
+              disabled={status === "verifying"}
+              style={{ marginTop: 4 }}
+            >
+              {status === "verifying" ? "Verifying…" : "Sign in →"}
+            </button>
+          </form>
+
+          <div style={{ textAlign: "center" }}>
+            <button
+              className="btn-ghost"
+              style={{ fontSize: "0.85rem" }}
+              onClick={() => { setStatus("idle"); setCode(""); setError(null); }}
+            >
+              Use a different email
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -98,7 +165,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
+        <form onSubmit={handleSendCode} style={{ display: "grid", gap: 12 }}>
           <div style={{ display: "grid", gap: 6 }}>
             <span className="setup-eyebrow">Email address</span>
             <input
@@ -124,7 +191,7 @@ export default function LoginPage() {
             disabled={status === "sending"}
             style={{ marginTop: 4 }}
           >
-            {status === "sending" ? "Sending…" : "Send me a link →"}
+            {status === "sending" ? "Sending…" : "Send me a code →"}
           </button>
         </form>
 
