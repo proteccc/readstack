@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { SendForm } from "./SendForm";
+import { GuestMigration } from "./GuestMigration";
 
 export default async function HomePage() {
   const user = await getCurrentUser();
@@ -34,6 +35,7 @@ export default async function HomePage() {
 
   return (
     <div style={{ paddingTop: 16 }}>
+      <GuestMigration isSignedIn={!!user} />
       <SendForm
         serverKindleEmail={kindleEmail}
         recentJobs={recentJobs}
