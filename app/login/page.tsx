@@ -115,7 +115,7 @@ export default function LoginPage() {
                 className="setup-input"
                 type="text"
                 inputMode="numeric"
-                placeholder="12345678"
+                placeholder="········"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 autoFocus
