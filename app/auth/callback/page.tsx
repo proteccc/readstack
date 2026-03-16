@@ -1,50 +1,54 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export default function AuthCallbackPage() {
-  const router = useRouter();
-
   useEffect(() => {
     async function handleCallback() {
       const supabase = getSupabaseBrowserClient();
-
       const searchParams = new URLSearchParams(window.location.search);
-      const token_hash = searchParams.get("token_hash");
-      const type = searchParams.get("type") as "magiclink" | "email" | null;
-      const code = searchParams.get("code");
       const next = searchParams.get("next") ?? "/";
 
-      if (token_hash && type) {
-        const { error } = await supabase.auth.verifyOtp({ token_hash, type });
-        if (error) {
-          router.replace(`/login?error=auth_failed`);
-          return;
-        }
-      } else if (code) {
+      // 1. PKCE flow — code in search params (desktop browsers)
+      const code = searchParams.get("code");
+      if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          router.replace(`/login?error=auth_failed`);
-          return;
-        }
-      } else {
-        // Implicit flow puts tokens in the hash — Supabase client auto-detects
-        // and processes them. Just wait briefly then redirect.
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          router.replace(`/login?error=missing_code`);
-          return;
-        }
+        window.location.replace(error ? "/login?error=auth_failed" : next);
+        return;
       }
 
-      router.replace(next);
+      // 2. token_hash flow — OTP token in search params
+      const token_hash = searchParams.get("token_hash");
+      const type = searchParams.get("type") as "magiclink" | "email" | null;
+      if (token_hash && type) {
+        const { error } = await supabase.auth.verifyOtp({ token_hash, type });
+        window.location.replace(error ? "/login?error=auth_failed" : next);
+        return;
+      }
+
+      // 3. Implicit flow — access_token in URL hash fragment (mobile WebViews)
+      const hashParams = new URLSearchParams(window.location.hash.slice(1));
+      const access_token = hashParams.get("access_token");
+      const refresh_token = hashParams.get("refresh_token");
+      if (access_token && refresh_token) {
+        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+        window.location.replace(error ? "/login?error=auth_failed" : next);
+        return;
+      }
+
+      // 4. Supabase may have auto-processed the hash already
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        window.location.replace(next);
+        return;
+      }
+
+      window.location.replace("/login?error=missing_code");
     }
 
     handleCallback();
-  }, [router]);
+  }, []);
 
   return (
     <div className="send-card">
