@@ -14,7 +14,13 @@ export function getSupabaseBrowserClient(): SupabaseClient {
       );
     }
 
-    browserClient = createBrowserClient(url, anonKey);
+    // Use implicit flow so magic link emails contain token_hash instead of
+    // a PKCE code. This makes sign-in work when the link is opened in a
+    // different browser context (e.g. Gmail app WebView on mobile), which
+    // doesn't share cookies/storage with the browser that requested the link.
+    browserClient = createBrowserClient(url, anonKey, {
+      auth: { flowType: "implicit" },
+    });
   }
 
   return browserClient;
