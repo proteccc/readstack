@@ -26,16 +26,16 @@ export async function generateAndSend(
   recipients: string[],
   byline: string | null = null
 ): Promise<void> {
-  let epubBuffer: Buffer;
+  let result: { buffer: Buffer; title: string };
   try {
-    epubBuffer = await buildEpub(htmlPath, byline);
+    result = await buildEpub(htmlPath, byline);
   } catch {
     throw new Error("CONVERT_ERROR");
   }
-  await sendEpub(epubBuffer, htmlPath, recipients);
+  await sendEpub(result.buffer, result.title, recipients);
 }
 
-async function buildEpub(htmlPath: string, byline: string | null = null): Promise<Buffer> {
+async function buildEpub(htmlPath: string, byline: string | null = null): Promise<{ buffer: Buffer; title: string }> {
   let html = readFileSync(htmlPath, "utf-8");
 
   // Extract title from the <title> tag for EPUB metadata.
@@ -66,7 +66,7 @@ async function buildEpub(htmlPath: string, byline: string | null = null): Promis
   const rawBuffer = await epub(
     {
       title,
-      author: byline ? `By ${byline}, from Readstack by DispatchPigeon.com` : "Readstack by DispatchPigeon.com",
+      author: byline ? `By ${byline} - From DispatchPigeon` : "From DispatchPigeon",
       lang: "en",
       version: 2,                  // EPUB 2 for best Kindle compatibility
       prependChapterTitles: false,  // title is already in the body HTML
@@ -88,12 +88,22 @@ async function buildEpub(htmlPath: string, byline: string | null = null): Promis
   writeFileSync(epubPath, Buffer.from(rawBuffer));
   console.log(`  EPUB written: ${epubPath}`);
 
-  return Buffer.from(rawBuffer);
+  return { buffer: Buffer.from(rawBuffer), title };
+}
+
+function sanitizeFilename(title: string): string {
+  return (
+    title
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "_")
+      .slice(0, 60)
+      .trim() || "article"
+  );
 }
 
 async function sendEpub(
   epubBuffer: Buffer,
-  htmlPath: string,
+  title: string,
   recipients: string[]
 ): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -108,8 +118,7 @@ async function sendEpub(
 
   const resend = new Resend(apiKey);
 
-  // Derive the filename from the HTML path for the email attachment.
-  const epubFilename = path.basename(htmlPath).replace(/\.html$/i, ".epub");
+  const epubFilename = `${sanitizeFilename(title)}.epub`;
 
   // Send separately to each recipient — Kindle and regular inboxes can
   // behave differently and per-recipient sends make failures easier to trace.

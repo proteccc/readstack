@@ -28,6 +28,7 @@ type Step =
   | { kind: "error"; failureReason: string | null; sourceUrl: string };
 
 const LS_KEY = "rs_kindle_email";
+const SESSION_JOB_KEY = "rs_active_job";
 
 function getErrorContent(reason: string | null) {
   if (
@@ -126,6 +127,29 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
       if (stored) setKindleEmail(stored);
     }
   }, [kindleEmail]);
+
+  // Restore an in-progress job from sessionStorage on mount (handles mobile
+  // navigation away to click magic link and back).
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SESSION_JOB_KEY);
+    if (saved) {
+      try {
+        const { jobId, sourceUrl } = JSON.parse(saved);
+        setStep({ kind: "processing", jobId, sourceUrl });
+      } catch {
+        sessionStorage.removeItem(SESSION_JOB_KEY);
+      }
+    }
+  }, []);
+
+  // Persist active job / clear on completion.
+  useEffect(() => {
+    if (step.kind === "processing") {
+      sessionStorage.setItem(SESSION_JOB_KEY, JSON.stringify({ jobId: step.jobId, sourceUrl: step.sourceUrl }));
+    } else if (step.kind === "success" || step.kind === "error") {
+      sessionStorage.removeItem(SESSION_JOB_KEY);
+    }
+  }, [step]);
 
   const jobId = step.kind === "processing" ? step.jobId : null;
   const { phase, failureReason } = useJobStatus(jobId);
