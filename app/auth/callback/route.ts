@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   // `next` lets us redirect somewhere other than the dashboard after sign-in,
   // useful later for deep-linking into a specific page post-auth.
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = searchParams.get("next") ?? "/";
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`);
