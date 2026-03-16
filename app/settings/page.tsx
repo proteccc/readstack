@@ -10,36 +10,16 @@ export default async function SettingsPage() {
     redirect("/login");
   }
 
-  const destinations = await db.deliveryDestination.findMany({
-    where: { userId: user.id },
+  const kindle = await db.deliveryDestination.findFirst({
+    where: { userId: user.id, kind: "kindle" },
   });
 
-  const kindleDestination = destinations.find((d) => d.kind === "kindle");
-  const emailDestination = destinations.find((d) => d.kind === "email");
-
   return (
-    <div className="shell">
-      <section className="hero">
-        <div className="stack">
-          <span className="eyebrow">Settings</span>
-          <h1>Delivery destinations</h1>
-          <p>
-            Configure where your articles are sent. Your Kindle email is
-            required; the secondary inbox is optional and useful for keeping a
-            copy for yourself.
-          </p>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="stack">
-          <SettingsClient
-            kindleEmail={kindleDestination?.email ?? ""}
-            secondaryEmail={emailDestination?.email ?? ""}
-          />
-        </div>
-      </section>
+    <div style={{ paddingTop: 16 }}>
+      <SettingsClient
+        userEmail={user.email}
+        kindleEmail={kindle?.email ?? ""}
+      />
     </div>
   );
 }
-
