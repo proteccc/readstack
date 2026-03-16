@@ -489,6 +489,29 @@ code {
   color: var(--accent);
 }
 
+/* ─── History ghost rows (unauthenticated gate) ─────────────────────────── */
+
+.ghost-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ghost-row:last-child { border-bottom: none; }
+.ghost-title-bar {
+  height: 11px;
+  background: rgba(31, 26, 23, 0.08);
+  border-radius: 4px;
+  margin-bottom: 6px;
+}
+.ghost-meta {
+  display: flex;
+  gap: 8px;
+}
+.ghost-chip {
+  height: 9px;
+  background: rgba(31, 26, 23, 0.05);
+  border-radius: 3px;
+}
+
 /* ─── History page ──────────────────────────────────────────────────────── */
 
 .history-grid {
