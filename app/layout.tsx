@@ -18,12 +18,25 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <main>
-          <nav className="nav">
-            <Link href="/">Overview</Link>
-            <Link href="/dashboard">Dashboard</Link>
-            <Link href="/settings">Settings</Link>
-            <Link href="/history">History</Link>
-            <span style={{ marginLeft: "auto" }} />
+          <nav
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 24,
+              paddingTop: 4,
+            }}
+          >
+            <Link
+              href="/"
+              style={{
+                fontWeight: 700,
+                fontSize: "1.05rem",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Readstack
+            </Link>
             <NavUser />
           </nav>
           {children}

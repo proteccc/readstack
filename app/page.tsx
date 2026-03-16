@@ -1,61 +1,44 @@
-import Link from "next/link";
-import { appArchitecture, appRoadmap } from "@/lib/app-config";
+import { getCurrentUser } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { SendForm } from "./SendForm";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const user = await getCurrentUser();
+
+  let kindleEmail: string | null = null;
+  let recentJobs: Array<{
+    id: string;
+    title: string | null;
+    sourceUrl: string;
+    status: string;
+    createdAt: string;
+  }> = [];
+
+  if (user) {
+    const kindle = await db.deliveryDestination.findFirst({
+      where: { userId: user.id, kind: "kindle" },
+    });
+    kindleEmail = kindle?.email ?? null;
+
+    const jobs = await db.job.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 2,
+      select: { id: true, title: true, sourceUrl: true, status: true, createdAt: true },
+    });
+    recentJobs = jobs.map((j) => ({
+      ...j,
+      createdAt: j.createdAt.toISOString(),
+    }));
+  }
+
   return (
-    <div className="shell">
-      <section className="hero">
-        <div className="hero-grid">
-          <div className="stack">
-            <span className="eyebrow">Protected Baseline Preserved</span>
-            <h1>Readstack is ready to move from CLI proof to web product.</h1>
-            <p>
-              The Java EPUB pipeline remains the source of truth. This new app shell
-              is the thin product layer that will handle auth, recipient settings,
-              job creation, and delivery history.
-            </p>
-            <div className="cta-row">
-              <Link className="button" href="/dashboard">
-                Open MVP Dashboard
-              </Link>
-              <Link className="button-secondary" href="/settings">
-                Review User Settings
-              </Link>
-            </div>
-          </div>
-          <div className="metric">
-            <strong>Current thesis</strong>
-            <p className="muted">
-              Keep the conversion pipeline stable. Wrap it with the smallest possible
-              hosted workflow for non-technical users.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="metrics">
-        {appArchitecture.map((item) => (
-          <article className="metric" key={item.label}>
-            <strong>{item.label}</strong>
-            <p className="muted">{item.value}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="panel">
-        <div className="stack">
-          <h2>Immediate build path</h2>
-          <div className="job-list">
-            {appRoadmap.map((step, index) => (
-              <div className="job" key={step}>
-                <strong>
-                  {index + 1}. {step}
-                </strong>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+    <div style={{ paddingTop: 16 }}>
+      <SendForm
+        serverKindleEmail={kindleEmail}
+        recentJobs={recentJobs}
+        isSignedIn={!!user}
+      />
     </div>
   );
 }

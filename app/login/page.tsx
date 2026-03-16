@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
-        router.replace("/dashboard");
+        router.replace("/");
       }
     });
   }, [router]);

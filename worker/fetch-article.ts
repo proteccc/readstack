@@ -17,11 +17,16 @@ import path from "path";
 const REPO_ROOT = path.resolve(__dirname, "..");
 const ARTICLES_DIR = path.join(REPO_ROOT, "articles");
 
+export interface FetchedArticle {
+  htmlPath: string;
+  title: string;
+}
+
 /**
  * Fetches the article at `url`, extracts the main content via Readability,
- * writes a clean HTML file to disk, and returns its absolute path.
+ * writes a clean HTML file to disk, and returns its path and title.
  */
-export async function fetchArticle(url: string): Promise<string> {
+export async function fetchArticle(url: string): Promise<FetchedArticle> {
   let response: Response;
   try {
     response = await fetch(url, {
@@ -87,7 +92,7 @@ export async function fetchArticle(url: string): Promise<string> {
   console.log(`  Article extracted: "${title}"`);
   console.log(`  HTML written: ${htmlPath}`);
 
-  return htmlPath;
+  return { htmlPath, title };
 }
 
 function escapeHtml(str: string): string {

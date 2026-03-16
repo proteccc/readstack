@@ -40,24 +40,30 @@ export async function runNextJob(): Promise<boolean> {
 
   console.log(`[job ${job.id}] running (${EPUB_GENERATOR}): ${job.sourceUrl}`);
 
-  // Resolve the user's delivery destinations.
-  const kindleDest = job.user.destinations.find((d) => d.kind === "kindle");
-  if (!kindleDest) {
-    await fail(job.id, "No Kindle destination configured for this user.");
+  // Resolve delivery recipients: authenticated user's destinations, or the
+  // guest Kindle email supplied directly in the job record.
+  let recipients: string[];
+  if (job.user) {
+    const kindleDest = job.user.destinations.find((d) => d.kind === "kindle");
+    if (!kindleDest) {
+      await fail(job.id, "No Kindle destination configured for this user.");
+      return true;
+    }
+    recipients = [kindleDest.email];
+    const emailDest = job.user.destinations.find((d) => d.kind === "email");
+    if (emailDest) recipients.push(emailDest.email);
+  } else if (job.guestKindleEmail) {
+    recipients = [job.guestKindleEmail];
+  } else {
+    await fail(job.id, "No delivery destination found for this job.");
     return true;
-  }
-
-  const recipients: string[] = [kindleDest.email];
-  const emailDest = job.user.destinations.find((d) => d.kind === "email");
-  if (emailDest) {
-    recipients.push(emailDest.email);
   }
 
   try {
     if (EPUB_GENERATOR === "calibre") {
       await runCalrePipeline(job.sourceUrl, recipients);
     } else {
-      await runNodePipeline(job.sourceUrl, recipients);
+      await runNodePipeline(job.id, job.sourceUrl, recipients);
     }
 
     await db.job.update({
@@ -78,8 +84,10 @@ export async function runNextJob(): Promise<boolean> {
  * Node pipeline: fetches and extracts the article using Readability.js
  * (no Java required), then converts to EPUB and delivers via nodemailer.
  */
-async function runNodePipeline(url: string, recipients: string[]): Promise<void> {
-  const htmlPath = await fetchArticle(url);
+async function runNodePipeline(jobId: string, url: string, recipients: string[]): Promise<void> {
+  const { htmlPath, title } = await fetchArticle(url);
+  // Write title to job record so the frontend can display it in history.
+  await db.job.update({ where: { id: jobId }, data: { title } });
   console.log(`  HTML ready: ${htmlPath}`);
   await generateAndSend(htmlPath, recipients);
 }
