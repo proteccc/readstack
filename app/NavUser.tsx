@@ -48,14 +48,13 @@ export function NavUser() {
           <button
             onClick={handleSignOut}
             style={{
-              marginLeft: 8,
               background: "none",
               border: "none",
               cursor: "pointer",
               color: "var(--muted)",
               fontFamily: "inherit",
               fontSize: "0.88rem",
-              padding: "6px 10px",
+              padding: "5px 8px",
             }}
           >
             Sign out
