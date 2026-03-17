@@ -14,14 +14,17 @@
   box-sizing: border-box;
 }
 
-html,
+html {
+  min-height: 100dvh;
+}
+
 body {
   margin: 0;
-  min-height: 100%;
+  min-height: 100dvh;
   overflow-x: hidden;
   background:
-    radial-gradient(circle at top left, rgba(186, 74, 0, 0.12), transparent 28%),
-    linear-gradient(180deg, #f8f4eb 0%, #eee5d8 100%);
+    radial-gradient(circle at top left, rgba(186, 74, 0, 0.1), transparent 24%),
+    linear-gradient(180deg, #e8e0d5 0px, #e8e0d5 72px, #f4f0e8 72px, #f4f0e8 100%);
   color: var(--text);
   font-family: Georgia, "Times New Roman", serif;
 }

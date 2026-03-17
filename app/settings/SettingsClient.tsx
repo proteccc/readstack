@@ -128,7 +128,7 @@ export function SettingsClient({ userEmail, kindleEmail: initial }: Props) {
           )}
 
           <AccountRow label="Approved sender">
-            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
               <code style={{ fontSize: "0.82rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{FROM_EMAIL}</code>
               <span
                 style={{

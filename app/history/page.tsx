@@ -45,7 +45,7 @@ export default async function HistoryPage() {
   if (!user) {
     return (
       <div style={{ paddingTop: 16 }}>
-        <div className="send-card" style={{ maxWidth: 760 }}>
+        <div style={{ width: "min(760px, 100%)", margin: "0 auto", display: "grid", gap: 20 }}>
           <div style={{ display: "grid", gap: 4 }}>
             <h2 style={{ margin: 0, fontWeight: 700, letterSpacing: "-0.02em" }}>
               Recent sends
@@ -105,7 +105,7 @@ export default async function HistoryPage() {
 
   return (
     <div style={{ paddingTop: 16 }}>
-      <div className="send-card" style={{ maxWidth: 760 }}>
+      <div style={{ width: "min(760px, 100%)", margin: "0 auto", display: "grid", gap: 20 }}>
         <div style={{ display: "grid", gap: 4 }}>
           <h2 style={{ margin: 0, fontWeight: 700, letterSpacing: "-0.02em" }}>
             Recent sends
