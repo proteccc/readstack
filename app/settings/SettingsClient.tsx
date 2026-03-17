@@ -24,7 +24,7 @@ function AccountRow({ label, children }: { label: string; children: React.ReactN
       }}
     >
       <span style={{ fontSize: "0.83rem", color: "var(--muted)", flexShrink: 0 }}>{label}</span>
-      <span style={{ fontSize: "0.9rem", textAlign: "right" }}>{children}</span>
+      <span style={{ fontSize: "0.9rem", textAlign: "right", minWidth: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>{children}</span>
     </div>
   );
 }
@@ -128,8 +128,8 @@ export function SettingsClient({ userEmail, kindleEmail: initial }: Props) {
           )}
 
           <AccountRow label="Approved sender">
-            <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <code style={{ fontSize: "0.82rem" }}>{FROM_EMAIL}</code>
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+              <code style={{ fontSize: "0.82rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{FROM_EMAIL}</code>
               <span
                 style={{
                   background: "rgba(34, 120, 60, 0.1)",
@@ -138,6 +138,7 @@ export function SettingsClient({ userEmail, kindleEmail: initial }: Props) {
                   fontWeight: 700,
                   padding: "2px 8px",
                   borderRadius: 999,
+                  whiteSpace: "nowrap",
                 }}
               >
                 ✓ Whitelisted
