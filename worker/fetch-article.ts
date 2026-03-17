@@ -21,6 +21,7 @@ export interface FetchedArticle {
   htmlPath: string;
   title: string;
   byline: string | null;
+  publishedTime: string | null;
 }
 
 /**
@@ -93,7 +94,7 @@ export async function fetchArticle(url: string): Promise<FetchedArticle> {
   console.log(`  Article extracted: "${title}"`);
   console.log(`  HTML written: ${htmlPath}`);
 
-  return { htmlPath, title, byline: article.byline ?? null };
+  return { htmlPath, title, byline: article.byline ?? null, publishedTime: article.publishedTime ?? null };
 }
 
 function escapeHtml(str: string): string {

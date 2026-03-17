@@ -24,18 +24,19 @@ import path from "path";
 export async function generateAndSend(
   htmlPath: string,
   recipients: string[],
-  byline: string | null = null
+  byline: string | null = null,
+  publishedTime: string | null = null
 ): Promise<void> {
   let result: { buffer: Buffer; title: string };
   try {
-    result = await buildEpub(htmlPath, byline);
+    result = await buildEpub(htmlPath, byline, publishedTime);
   } catch {
     throw new Error("CONVERT_ERROR");
   }
   await sendEpub(result.buffer, result.title, recipients);
 }
 
-async function buildEpub(htmlPath: string, byline: string | null = null): Promise<{ buffer: Buffer; title: string }> {
+async function buildEpub(htmlPath: string, byline: string | null = null, publishedTime: string | null = null): Promise<{ buffer: Buffer; title: string }> {
   let html = readFileSync(htmlPath, "utf-8");
 
   // Extract title from the <title> tag for EPUB metadata.
@@ -63,13 +64,37 @@ async function buildEpub(htmlPath: string, byline: string | null = null): Promis
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   const bodyContent = bodyMatch ? bodyMatch[1] : html;
 
+  // Format the published date if available (ISO → "Month D, YYYY").
+  let dateStr = "";
+  if (publishedTime) {
+    try {
+      dateStr = new Date(publishedTime).toLocaleDateString("en-US", {
+        year: "numeric", month: "long", day: "numeric",
+      });
+    } catch { /* ignore malformed dates */ }
+  }
+
+  // Build a subtitle line: "By Author · Date" (either part optional).
+  const subtitleParts = [byline ? `By ${byline}` : "", dateStr].filter(Boolean);
+  const subtitleHtml = subtitleParts.length
+    ? `<p style="font-size:0.95em;color:#555;margin:0.3em 0 1.8em;">${subtitleParts.join(" · ")}</p>`
+    : "";
+
+  // Prepend the article title and byline/date as styled HTML so they appear
+  // at the very top of the chapter content.
+  const chapterContent = `
+    <h1 style="font-size:1.6em;margin:0 0 0.2em;">${title}</h1>
+    ${subtitleHtml}
+    ${bodyContent}
+  `;
+
   const rawBuffer = await epub(
     {
       title,
       author: byline ? `By ${byline} - From DispatchPigeon` : "From DispatchPigeon",
       lang: "en",
       version: 2,                  // EPUB 2 for best Kindle compatibility
-      prependChapterTitles: false,  // title is already in the body HTML
+      prependChapterTitles: false,  // title is in the chapter HTML above
       numberChaptersInTOC: false,
       tocInTOC: false,
       ignoreFailedDownloads: true,  // missing images should not abort delivery
@@ -77,8 +102,8 @@ async function buildEpub(htmlPath: string, byline: string | null = null): Promis
     [
       {
         title,
-        content: bodyContent,
-        excludeFromToc: false,
+        content: chapterContent,
+        beforeToc: true,  // place chapter before the TOC page in the spine
       },
     ]
   );
