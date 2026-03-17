@@ -533,6 +533,8 @@ code {
 .history-item {
   padding: 12px 0;
   border-bottom: 1px solid var(--line);
+  min-width: 0;
+  overflow: hidden;
 }
 .history-item:last-child {
   border-bottom: none;
