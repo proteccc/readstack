@@ -80,11 +80,13 @@ export function SettingsClient({ userEmail, kindleEmail: initial }: Props) {
 
           <AccountRow label="Kindle email">
             {editing ? null : (
-              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {kindleEmail || <span style={{ color: "var(--muted)" }}>Not set</span>}
+              <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, overflow: "hidden" }}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                  {kindleEmail || <span style={{ color: "var(--muted)" }}>Not set</span>}
+                </span>
                 <button
                   className="btn-ghost"
-                  style={{ fontSize: "0.8rem" }}
+                  style={{ fontSize: "0.8rem", flexShrink: 0 }}
                   onClick={() => { setKindleInput(kindleEmail); setEditing(true); }}
                 >
                   Edit

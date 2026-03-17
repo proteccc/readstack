@@ -468,9 +468,11 @@ code {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.45);
   font-size: 0.88rem;
+  overflow: hidden;
 }
 .recent-title {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -588,17 +590,17 @@ code {
   display: none;
 }
 @media (max-width: 640px) {
-  /* Hide desktop nav links — bottom tab bar takes over */
-  .nav-desktop {
-    display: none;
-  }
-
   /* Stack URL input + button vertically */
   .url-row {
     flex-direction: column;
   }
   .url-row .btn-primary {
     width: 100%;
+  }
+
+  /* Let history titles wrap rather than overflow */
+  .history-title {
+    white-space: normal;
   }
 
   .tab-bar {

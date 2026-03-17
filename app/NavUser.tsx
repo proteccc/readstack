@@ -35,7 +35,7 @@ export function NavUser() {
     <>
       {/* Desktop nav links */}
       {signedIn ? (
-        <div className="nav-desktop" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" }}>
           <Link href="/" className={`nav-link${pathname === "/" ? " nav-link-active" : ""}`}>
             Send
           </Link>
@@ -67,19 +67,6 @@ export function NavUser() {
         </Link>
       )}
 
-      {/* Mobile bottom tab bar — only for signed-in users */}
-      {signedIn && (
-        <nav className="tab-bar">
-          <Link href="/" className={pathname === "/" ? "active" : ""}>
-            <span style={{ fontSize: "1.1rem" }}>📤</span>
-            Send
-          </Link>
-          <Link href="/history" className={pathname === "/history" ? "active" : ""}>
-            <span style={{ fontSize: "1.1rem" }}>📋</span>
-            History
-          </Link>
-        </nav>
-      )}
     </>
   );
 }
