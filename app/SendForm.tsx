@@ -352,8 +352,15 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
               Your Kindle email address
             </div>
             <div className="muted" style={{ fontSize: "0.83rem" }}>
-              Found in Kindle settings under &apos;Personal Document E-mail
-              Address&apos;.
+              Found in Kindle or{" "}
+              <a
+                href="https://www.amazon.com/sendtokindle/email"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Amazon.com
+              </a>
+              : All Settings → Your account → Send-to-Kindle email
             </div>
           </div>
           {onStep1 && (
@@ -389,7 +396,14 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
           <div className="setup-eyebrow">Step 2 · Permission to send</div>
           <div>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>
-              Add us to Amazon&apos;s approved senders
+              Add us to Amazon&apos;s approved senders{" "}
+              <a
+                href="https://www.amazon.com/gp/help/customer/display.html?nodeId=GX9XLEVV8G4DB28H"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ↗
+              </a>
             </div>
             <div className="muted" style={{ fontSize: "0.83rem", lineHeight: 1.5 }}>
               Go to Amazon Account → Preferences → Personal Document Settings →
