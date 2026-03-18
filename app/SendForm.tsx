@@ -244,7 +244,7 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
               devices.
             </p>
             <Link href="/login">
-              <button className="btn-cta">Create free account →</button>
+              <button className="btn-cta">Create account →</button>
             </Link>
           </div>
         )}
@@ -526,7 +526,7 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
           <div style={{ display: "flex", gap: 10 }}>
             <Link href="/login" style={{ flex: 1 }}>
               <button className="btn-cta" style={{ background: "#3d1f8a" }}>
-                Create free account →
+                Create account →
               </button>
             </Link>
             <Link href="/login" style={{ flex: 1 }}>
