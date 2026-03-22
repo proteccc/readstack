@@ -53,7 +53,7 @@ export default function RootLayout({
               rel="noopener noreferrer"
               style={{ fontSize: "0.8rem", opacity: 0.45 }}
             >
-              Who built this?
+              Who built Readstack? Contact here.
             </a>
           </footer>
         </main>
