@@ -35,7 +35,7 @@ export async function fetchArticle(url: string): Promise<FetchedArticle> {
       headers: {
         // Identify ourselves clearly; some sites block generic fetch user-agents.
         "User-Agent":
-          "Mozilla/5.0 (compatible; Readstack/1.0; +https://readstack.app)",
+          "Mozilla/5.0 (compatible; Readstack/1.0; +https://read-stack.com)",
         Accept: "text/html,application/xhtml+xml",
       },
       redirect: "follow",

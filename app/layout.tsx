@@ -40,6 +40,22 @@ export default function RootLayout({
             <NavUser />
           </nav>
           {children}
+          <footer
+            style={{
+              textAlign: "center",
+              marginTop: 48,
+              paddingBottom: 24,
+            }}
+          >
+            <a
+              href="https://x.com/gabewise"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: "0.8rem", opacity: 0.45 }}
+            >
+              Who built this?
+            </a>
+          </footer>
         </main>
       </body>
     </html>

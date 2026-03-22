@@ -64,7 +64,7 @@ function getErrorContent(reason: string | null) {
     body: (
       <>
         Make sure{" "}
-        <code style={{ fontWeight: 700 }}>readstack@dispatchpigeon.com</code> is
+        <code style={{ fontWeight: 700 }}>readstack@read-stack.com</code> is
         in your Amazon approved senders list (Manage Your Content &amp; Devices
         → Preferences → Personal Document Settings).
       </>
@@ -413,7 +413,7 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
           {!onStep1 && (
             <>
               <code className="whitelist-address">
-                readstack@dispatchpigeon.com
+                readstack@read-stack.com
               </code>
               <div className="whitelist-warning">
                 Or articles won&apos;t arrive — Amazon silently blocks unknown
