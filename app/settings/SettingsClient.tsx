@@ -36,6 +36,7 @@ export function SettingsClient({ userEmail, kindleEmail: initial }: Props) {
   const [kindleEmail, setKindleEmail] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [platform, setPlatform] = useState<"Desktop" | "Mobile">("Desktop");
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
@@ -126,6 +127,39 @@ export function SettingsClient({ userEmail, kindleEmail: initial }: Props) {
                     Cancel
                   </button>
                 )}
+              </div>
+              <div style={{ paddingTop: 4, borderTop: "1px solid var(--line)", display: "grid", gap: 8 }}>
+                <div style={{ fontSize: "0.8rem", fontWeight: 600 }}>
+                  How to find your Kindle email
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {(["Desktop", "Mobile"] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPlatform(p)}
+                      style={{
+                        fontSize: "0.75rem",
+                        padding: "2px 10px",
+                        borderRadius: 999,
+                        border: "1px solid currentColor",
+                        background: platform === p ? "var(--fg, #1a1a1a)" : "transparent",
+                        color: platform === p ? "var(--bg, #fff)" : "inherit",
+                        cursor: "pointer",
+                        opacity: platform === p ? 1 : 0.45,
+                      }}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <p className="muted" style={{ margin: 0, fontSize: "0.83rem", lineHeight: 1.5 }}>
+                  {platform === "Desktop" ? (
+                    <>Amazon Account → Preferences → Personal Document Settings → Your Kindle Email</>
+                  ) : (
+                    <>Amazon app → tap the menu (☰) → Account → Manage Content &amp; Devices → Preferences → Personal Document Settings → Your Kindle Email</>
+                  )}
+                </p>
               </div>
             </form>
           )}
