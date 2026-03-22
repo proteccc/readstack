@@ -91,7 +91,7 @@ async function buildEpub(htmlPath: string, byline: string | null = null, publish
   const rawBuffer = await epub(
     {
       title,
-      author: byline ? `By ${byline} - From DispatchPigeon` : "From DispatchPigeon",
+      author: byline ? `By ${byline} - From Read-Stack` : "From Read-Stack",
       lang: "en",
       version: 2,                  // EPUB 2 for best Kindle compatibility
       prependChapterTitles: false,  // title is in the chapter HTML above
