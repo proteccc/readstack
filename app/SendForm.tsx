@@ -119,6 +119,7 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
   const [kindleEmailInput, setKindleEmailInput] = useState("");
   const [kindleEmail, setKindleEmail] = useState<string | null>(serverKindleEmail ?? null);
   const [submitting, setSubmitting] = useState(false);
+  const [platform, setPlatform] = useState<"Desktop" | "Mobile">("Desktop");
 
   // Read Kindle email from localStorage on mount (for returning guests).
   useEffect(() => {
@@ -395,7 +396,7 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
         <div className={`setup-card ${onStep1 ? "dimmed" : ""}`}>
           <div className="setup-eyebrow">Step 2 · Permission to send</div>
           <div>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>
               Add us to Amazon&apos;s approved senders{" "}
               <a
                 href="https://www.amazon.com/gp/help/customer/display.html?nodeId=GX9XLEVV8G4DB28H"
@@ -405,9 +406,32 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
                 ↗
               </a>
             </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              {(["Desktop", "Mobile"] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPlatform(p)}
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "2px 10px",
+                    borderRadius: 999,
+                    border: "1px solid currentColor",
+                    background: platform === p ? "var(--fg, #1a1a1a)" : "transparent",
+                    color: platform === p ? "var(--bg, #fff)" : "inherit",
+                    cursor: "pointer",
+                    opacity: platform === p ? 1 : 0.45,
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
             <div className="muted" style={{ fontSize: "0.83rem", lineHeight: 1.5 }}>
-              Go to Amazon Account → Preferences → Personal Document Settings →
-              Approved Personal Email List, and add:
+              {platform === "Desktop" ? (
+                <>Amazon Account → Preferences → Personal Document Settings → Approved Personal Email List, and add:</>
+              ) : (
+                <>Amazon app → tap the menu (☰) → Account → Manage Content &amp; Devices → Preferences → Personal Document Settings → Approved Personal Document E-mail List, and add:</>
+              )}
             </div>
           </div>
           {!onStep1 && (
