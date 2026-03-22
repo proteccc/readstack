@@ -16,7 +16,9 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      const next = searchParams.get("next") ?? "/";
+      const rawNext = searchParams.get("next") ?? "/";
+      // Only allow relative paths to prevent open redirect attacks.
+      const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
 
       // PKCE flow — code in search params
       const code = searchParams.get("code");

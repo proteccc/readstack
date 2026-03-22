@@ -40,7 +40,10 @@ export function SettingsClient({ userEmail, kindleEmail: initial }: Props) {
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     const trimmed = kindleInput.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setSaveError("Kindle email cannot be empty.");
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {

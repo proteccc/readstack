@@ -61,7 +61,7 @@ export async function runNextJob(): Promise<boolean> {
 
   try {
     if (EPUB_GENERATOR === "calibre") {
-      await runCalrePipeline(job.sourceUrl, recipients);
+      await runCalibrePipeline(job.sourceUrl, recipients);
     } else {
       await runNodePipeline(job.id, job.sourceUrl, recipients);
     }
@@ -96,7 +96,7 @@ async function runNodePipeline(jobId: string, url: string, recipients: string[])
  * Calibre pipeline: Java runs the full pipeline (fetch, clean, Calibre EPUB,
  * send). Original behavior, kept as a fallback via EPUB_GENERATOR=calibre.
  */
-async function runCalrePipeline(url: string, recipients: string[]): Promise<void> {
+async function runCalibrePipeline(url: string, recipients: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     const env: NodeJS.ProcessEnv = {
       ...process.env,

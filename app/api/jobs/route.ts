@@ -40,6 +40,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const kindleDest = await db.deliveryDestination.findFirst({
+      where: { userId: user.id, kind: "kindle" },
+    });
+
+    if (!kindleDest) {
+      return NextResponse.json(
+        { ok: false, message: "No Kindle email configured. Please add one in Settings." },
+        { status: 400 }
+      );
+    }
+
     const job = await db.job.create({
       data: {
         userId: user.id,

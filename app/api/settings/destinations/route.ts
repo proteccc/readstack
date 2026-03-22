@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+const kindleEmailRegex = /^[^\s@]+@kindle\.com$/i;
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: NextRequest) {
@@ -35,9 +36,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!emailRegex.test(kindleEmail)) {
+  if (!kindleEmailRegex.test(kindleEmail)) {
     return NextResponse.json(
-      { ok: false, message: "Invalid Kindle email address." },
+      { ok: false, message: "Kindle email must end in @kindle.com." },
       { status: 400 }
     );
   }

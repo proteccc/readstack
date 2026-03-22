@@ -18,12 +18,16 @@ export function GuestMigration({ isSignedIn }: { isSignedIn: boolean }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kindleEmail: stored }),
-    }).then((res) => {
-      if (res.ok) {
-        localStorage.removeItem(LS_KEY);
-        router.refresh();
-      }
-    });
+    })
+      .then((res) => {
+        if (res.ok) {
+          localStorage.removeItem(LS_KEY);
+          router.refresh();
+        }
+      })
+      .catch(() => {
+        // Network error — leave localStorage intact so we can retry next time.
+      });
   }, [isSignedIn, router]);
 
   return null;
