@@ -216,6 +216,8 @@ code {
   margin: 0 auto;
   display: grid;
   gap: 20px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* Status chip */
@@ -229,6 +231,7 @@ code {
   font-weight: 600;
   border: 1px solid transparent;
   max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

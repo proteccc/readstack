@@ -307,7 +307,13 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
 
     return (
       <div className="send-card" style={{ paddingTop: 24 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {kindleEmail && (
+            <div className="chip chip-green" style={{ alignSelf: "flex-start" }}>
+              <span className="chip-dot" />
+              {kindleEmail}
+            </div>
+          )}
           <div>
             <div className="chip chip-amber" style={{ marginBottom: 6 }}>
               <span className="chip-dot" />
@@ -317,12 +323,6 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
               Fetching &amp; generating EPUB
             </div>
           </div>
-          {kindleEmail && (
-            <div className="chip chip-green">
-              <span className="chip-dot" />
-              {kindleEmail}
-            </div>
-          )}
         </div>
         <div className="pipeline">
           {steps.map((s) => (
