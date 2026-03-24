@@ -462,27 +462,40 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
   const connected = !!kindleEmail;
 
   return (
+    <>
+      <div
+        style={{
+          width: "min(580px, calc(100% - 32px))",
+          margin: "0 auto 20px",
+          textAlign: "center",
+        }}
+      >
+        <h1
+          style={{
+            margin: "0 0 8px",
+            fontSize: "clamp(1.7rem, 5vw, 2.4rem)",
+            fontWeight: 700,
+            letterSpacing: "-0.03em",
+            lineHeight: 1.15,
+          }}
+        >
+          Any Substack post,<br />on your Kindle.
+        </h1>
+        <p style={{ margin: 0, color: "var(--muted)", fontSize: "1rem" }}>
+          Paste a URL. We&apos;ll convert it and send it in seconds.
+        </p>
+      </div>
+
     <div className="send-card">
       <div
         style={{
           display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 10,
+          alignItems: "center",
+          justifyContent: "flex-end",
         }}
       >
-        <div className="stack" style={{ gap: 6 }}>
-          <h1 style={{ margin: 0, fontSize: "1.55rem", fontWeight: 700, letterSpacing: "-0.02em" }}>
-            Send to your Kindle
-          </h1>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
-            Paste any Substack article URL to get started.
-          </p>
-        </div>
         <div
           className={`chip ${connected ? "chip-green" : "chip-amber"}`}
-          style={{ marginTop: 4 }}
         >
           <span className="chip-dot" />
           {connected ? kindleEmail : "Kindle not connected"}
@@ -565,5 +578,6 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
         </div>
       )}
     </div>
+    </>
   );
 }
