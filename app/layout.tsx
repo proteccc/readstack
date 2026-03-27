@@ -29,13 +29,23 @@ export default function RootLayout({
           >
             <Link
               href="/"
-              style={{
-                fontWeight: 700,
-                fontSize: "1.05rem",
-                letterSpacing: "-0.01em",
-              }}
+              style={{ display: "flex", alignItems: "center", gap: 10 }}
             >
-              Readstack
+              <svg width="37" height="32" viewBox="-2 -1 46 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <g transform="rotate(-14 16 18)">
+                  <rect x="5" y="2" width="18" height="26" rx="3.2" fill="#E7D9CF" stroke="#1A1A1A" strokeWidth="1.05"/>
+                </g>
+                <g transform="rotate(14 26 18)">
+                  <rect x="19" y="2" width="18" height="26" rx="3.2" fill="#E7D9CF" stroke="#1A1A1A" strokeWidth="1.05"/>
+                </g>
+                <rect x="12" y="1" width="18" height="26" rx="3.2" fill="white" stroke="#1A1A1A" strokeWidth="1.05"/>
+                <line x1="16" y1="8.5"  x2="26" y2="8.5"  stroke="#1A1A1A" strokeWidth="0.65" strokeLinecap="round"/>
+                <line x1="16" y1="13"   x2="26" y2="13"   stroke="#1A1A1A" strokeWidth="0.65" strokeLinecap="round"/>
+                <line x1="16" y1="17.5" x2="22" y2="17.5" stroke="#1A1A1A" strokeWidth="0.65" strokeLinecap="round"/>
+              </svg>
+              <span style={{ fontWeight: 300, fontSize: "1.4rem", color: "#1A1A1A", letterSpacing: "-0.04em", lineHeight: 1 }}>
+                readstack
+              </span>
             </Link>
             <NavUser />
           </nav>
