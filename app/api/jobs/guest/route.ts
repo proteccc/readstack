@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // In-memory IP rate limiter: 10 sends per hour per IP.
-// Resets on worker restart — acceptable for MVP.
+//
+// Limitations (known, acceptable for now):
+//   - Resets whenever the web process restarts.
+//   - Not shared across multiple web instances.
+//   - For a more robust solution, move counters into the database or Redis.
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_PER_WINDOW = 10;
 const ipCounters = new Map<string, { count: number; resetAt: number }>();

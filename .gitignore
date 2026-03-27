@@ -10,3 +10,15 @@ node_modules/
 dist/
 .turbo/
 coverage/
+
+# Design mockups and internal docs
+logo-*.html
+logo-*.png
+logo_*.html
+logo_*.png
+logo-export*
+wireframes-*.html
+*.xlsx
+*.docx
+*.pdf
+readstack_*.txt

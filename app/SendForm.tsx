@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useJobStatus } from "@/hooks/useJobStatus";
+import { ErrorCodes } from "@/lib/error-codes";
 
 interface RecentJob {
   id: string;
@@ -27,15 +28,17 @@ type Step =
   | { kind: "success"; sourceUrl: string }
   | { kind: "error"; failureReason: string | null; sourceUrl: string };
 
+const FROM_EMAIL = process.env.NEXT_PUBLIC_READSTACK_FROM_EMAIL ?? "readstack@read-stack.com";
+
 const LS_KEY = "rs_kindle_email";
 const SESSION_JOB_KEY = "rs_active_job";
 
 function getErrorContent(reason: string | null) {
   if (
-    reason === "FETCH_BAD_URL" ||
-    reason === "FETCH_PAYWALLED" ||
-    reason === "FETCH_BLOCKED" ||
-    reason === "FETCH_ERROR"
+    reason === ErrorCodes.FETCH_BAD_URL ||
+    reason === ErrorCodes.FETCH_PAYWALLED ||
+    reason === ErrorCodes.FETCH_BLOCKED ||
+    reason === ErrorCodes.FETCH_ERROR
   ) {
     return {
       colorClass: "amber",
@@ -46,7 +49,7 @@ function getErrorContent(reason: string | null) {
       retry: false,
     };
   }
-  if (reason === "CONVERT_ERROR") {
+  if (reason === ErrorCodes.CONVERT_ERROR) {
     return {
       colorClass: "amber",
       label: "Conversion failed",
@@ -64,7 +67,7 @@ function getErrorContent(reason: string | null) {
     body: (
       <>
         Make sure{" "}
-        <code style={{ fontWeight: 700 }}>readstack@read-stack.com</code> is
+        <code style={{ fontWeight: 700 }}>{FROM_EMAIL}</code> is
         in your Amazon approved senders list (Manage Your Content &amp; Devices
         → Preferences → Personal Document Settings).
       </>
@@ -437,7 +440,7 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
           {!onStep1 && (
             <>
               <code className="whitelist-address">
-                readstack@read-stack.com
+                {FROM_EMAIL}
               </code>
               <div className="whitelist-warning">
                 Or articles won&apos;t arrive — Amazon silently blocks unknown

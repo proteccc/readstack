@@ -13,6 +13,7 @@ import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
 import { writeFileSync, mkdirSync } from "fs";
 import path from "path";
+import { ErrorCodes } from "./error-codes";
 
 const REPO_ROOT = path.resolve(__dirname, "..");
 const ARTICLES_DIR = path.join(REPO_ROOT, "articles");
@@ -41,15 +42,15 @@ export async function fetchArticle(url: string): Promise<FetchedArticle> {
       redirect: "follow",
     });
   } catch {
-    throw new Error("FETCH_ERROR");
+    throw new Error(ErrorCodes.FETCH_ERROR);
   }
 
   if (!response.ok) {
     const status = response.status;
-    if (status === 404) throw new Error("FETCH_BAD_URL");
-    if (status === 402) throw new Error("FETCH_PAYWALLED");
-    if (status === 403 || status === 429) throw new Error("FETCH_BLOCKED");
-    throw new Error("FETCH_ERROR");
+    if (status === 404) throw new Error(ErrorCodes.FETCH_BAD_URL);
+    if (status === 402) throw new Error(ErrorCodes.FETCH_PAYWALLED);
+    if (status === 403 || status === 429) throw new Error(ErrorCodes.FETCH_BLOCKED);
+    throw new Error(ErrorCodes.FETCH_ERROR);
   }
 
   const html = await response.text();
@@ -60,7 +61,7 @@ export async function fetchArticle(url: string): Promise<FetchedArticle> {
   const article = reader.parse();
 
   if (!article) {
-    throw new Error("FETCH_ERROR");
+    throw new Error(ErrorCodes.FETCH_ERROR);
   }
 
   const title = article.title?.trim() || "Readstack Article";

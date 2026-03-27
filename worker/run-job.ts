@@ -9,6 +9,28 @@ const db = new PrismaClient();
 // Root of the repo — used by the Calibre fallback path only.
 const REPO_ROOT = path.resolve(__dirname, "..");
 
+// Jobs still "running" after this long are considered orphaned (worker crashed
+// mid-job) and will be reset to "failed" at startup.
+const STALE_JOB_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+// Maximum time allowed for a single job before it is force-failed.
+const JOB_EXECUTION_TIMEOUT_MS = 8 * 60 * 1000; // 8 minutes
+
+/**
+ * Marks any jobs stuck in "running" for longer than STALE_JOB_TIMEOUT_MS as
+ * failed. Call once at worker startup to recover from a previous crash.
+ */
+export async function recoverStaleJobs(): Promise<void> {
+  const cutoff = new Date(Date.now() - STALE_JOB_TIMEOUT_MS);
+  const stale = await db.job.updateMany({
+    where: { status: "running", startedAt: { lt: cutoff } },
+    data: { status: "failed", failureReason: "Worker restarted while job was running.", completedAt: new Date() },
+  });
+  if (stale.count > 0) {
+    console.log(`[startup] Recovered ${stale.count} stale job(s).`);
+  }
+}
+
 // EPUB_GENERATOR controls which conversion path is used:
 //   "node"    — Java fetches/cleans HTML, Node generates EPUB via epub-gen-memory
 //   "calibre" — Java runs the full pipeline including Calibre (original behavior)
@@ -59,12 +81,16 @@ export async function runNextJob(): Promise<boolean> {
     return true;
   }
 
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("JOB_TIMEOUT")), JOB_EXECUTION_TIMEOUT_MS)
+  );
+
   try {
-    if (EPUB_GENERATOR === "calibre") {
-      await runCalibrePipeline(job.sourceUrl, recipients);
-    } else {
-      await runNodePipeline(job.id, job.sourceUrl, recipients);
-    }
+    const pipeline = EPUB_GENERATOR === "calibre"
+      ? runCalibrePipeline(job.sourceUrl, recipients)
+      : runNodePipeline(job.id, job.sourceUrl, recipients);
+
+    await Promise.race([pipeline, timeout]);
 
     await db.job.update({
       where: { id: job.id },

@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
-const FROM_EMAIL = "readstack@read-stack.com";
+const FROM_EMAIL = process.env.NEXT_PUBLIC_READSTACK_FROM_EMAIL ?? "readstack@read-stack.com";
 
 interface Props {
   userEmail: string;

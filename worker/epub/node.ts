@@ -14,6 +14,7 @@ import epub from "epub-gen-memory";
 import { Resend } from "resend";
 import { readFileSync, writeFileSync } from "fs";
 import path from "path";
+import { ErrorCodes } from "../error-codes";
 
 
 /**
@@ -31,7 +32,7 @@ export async function generateAndSend(
   try {
     result = await buildEpub(htmlPath, byline, publishedTime);
   } catch {
-    throw new Error("CONVERT_ERROR");
+    throw new Error(ErrorCodes.CONVERT_ERROR);
   }
   await sendEpub(result.buffer, result.title, recipients);
 }
@@ -166,7 +167,7 @@ async function sendEpub(
     });
     if (error) {
       console.error(`  Resend error for ${recipient}: ${error.message}`);
-      throw new Error("SMTP_ERROR");
+      throw new Error(ErrorCodes.SMTP_ERROR);
     }
     console.log(`  Delivered to: ${recipient}`);
   }
