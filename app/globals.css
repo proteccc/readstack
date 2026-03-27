@@ -189,6 +189,27 @@ code {
   }
 }
 
+/* ─── Logo ──────────────────────────────────────────────────────────────── */
+
+.logo-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.logo-icon {
+  width: 37px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.logo-wordmark {
+  font-family: Inter, -apple-system, sans-serif;
+  font-weight: 300;
+  font-size: 1.4rem;
+  color: #1A1A1A;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
 /* ─── Top nav links ─────────────────────────────────────────────────────── */
 
 .nav-link {
@@ -598,6 +619,17 @@ code {
   display: none;
 }
 @media (max-width: 640px) {
+  .logo-icon {
+    width: 26px;
+    height: 22px;
+  }
+  .logo-wordmark {
+    font-size: 1.05rem;
+  }
+  .nav-link {
+    padding: 5px 5px;
+  }
+
   /* Stack URL input + button vertically */
   .url-row {
     flex-direction: column;
