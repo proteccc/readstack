@@ -60,6 +60,10 @@ async function buildEpub(htmlPath: string, byline: string | null = null, publish
   // would confuse epub-gen-memory's image resolution.
   html = html.replace(/<base[^>]*>/gi, "");
 
+  // Unwrap images from anchor tags so tapping an image on Kindle doesn't
+  // open the browser. Replace <a ...><img ...></a> with just the <img>.
+  html = html.replace(/<a[^>]*>\s*(<img[^>]*>)\s*<\/a>/gi, "$1");
+
   // The library expects inner body content, not a full HTML document.
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   const bodyContent = bodyMatch ? bodyMatch[1] : html;
