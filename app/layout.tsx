@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { NavUser } from "./NavUser";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "Readstack",
@@ -16,6 +17,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <Script src="https://www.googletagmanager.com/gtag/js?id=G-P3KWR2EPJN" strategy="afterInteractive" />
+        <Script id="ga-init" strategy="afterInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-P3KWR2EPJN');
+        `}</Script>
+      </head>
       <body>
         <main>
           <nav
