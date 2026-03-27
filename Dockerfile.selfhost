@@ -7,10 +7,11 @@
 #   Worker: docker run -e ... readstack npm run start:worker
 #
 # Build:
-#   docker build -t readstack .
+#   docker build -f Dockerfile.selfhost -t readstack .
 #
-# Note: Railway deployments use nixpacks (nixpacks.toml) instead of this file.
-# This Dockerfile is provided for self-hosting on other platforms.
+# Note: Railway deployments use nixpacks (nixpacks.toml) — this file is named
+# Dockerfile.selfhost intentionally so Railway does not auto-detect it.
+# Use this file when self-hosting on other platforms (bare metal, Kubernetes, etc).
 
 FROM node:20-alpine AS deps
 WORKDIR /app
