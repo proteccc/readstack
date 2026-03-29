@@ -60,15 +60,21 @@ export default function RootLayout({
               textAlign: "center",
               marginTop: 48,
               paddingBottom: 24,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: "0.75rem",
+              flexWrap: "wrap",
+              fontSize: "0.8rem",
+              opacity: 0.45,
             }}
           >
-            <a
-              href="https://x.com/gabewise"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: "0.8rem", opacity: 0.45 }}
-            >
+            <a href="https://x.com/gabewise" target="_blank" rel="noopener noreferrer">
               Who built Readstack? Contact here.
+            </a>
+            <span aria-hidden="true">·</span>
+            <a href="https://github.com/proteccc/readstack" target="_blank" rel="noopener noreferrer">
+              Open source on GitHub
             </a>
           </footer>
         </main>
