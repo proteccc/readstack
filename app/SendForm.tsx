@@ -483,6 +483,9 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
           textAlign: "center",
         }}
       >
+        <p style={{ margin: "0 0 10px", color: "var(--muted)", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          Fast · Easy · Free · Open source
+        </p>
         <h1
           style={{
             margin: "0 0 8px",
@@ -494,8 +497,8 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
         >
           Any Substack post,<br />on your Kindle.
         </h1>
-        <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem", letterSpacing: "0.01em" }}>
-          Fast · Easy · Free · Open source
+        <p style={{ margin: 0, color: "var(--muted)", fontSize: "1rem" }}>
+          Paste a URL. We&apos;ll convert it and send it in seconds.
         </p>
       </div>
 
