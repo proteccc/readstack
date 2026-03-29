@@ -483,9 +483,6 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
           textAlign: "center",
         }}
       >
-        <p style={{ margin: "0 0 10px", color: "var(--muted)", fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-          Fast · Easy · Free · Open source
-        </p>
         <h1
           style={{
             margin: "0 0 8px",
@@ -497,9 +494,23 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
         >
           Any Substack post,<br />on your Kindle.
         </h1>
-        <p style={{ margin: 0, color: "var(--muted)", fontSize: "1rem" }}>
+        <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: "1rem" }}>
           Paste a URL. We&apos;ll convert it and send it in seconds.
         </p>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6 }}>
+          {["fast", "easy", "free", "open source"].map((tag) => (
+            <span key={tag} style={{
+              fontSize: "0.75rem",
+              padding: "3px 10px",
+              borderRadius: 999,
+              border: "1px solid var(--line)",
+              color: "var(--muted)",
+              background: "rgba(255,255,255,0.45)",
+            }}>
+              {tag}
+            </span>
+          ))}
+        </div>
       </div>
 
     <div className="send-card">
