@@ -34,6 +34,16 @@ const LS_KEY = "rs_kindle_email";
 const SESSION_JOB_KEY = "rs_active_job";
 
 function getErrorContent(reason: string | null) {
+  if (reason === ErrorCodes.FETCH_UNSUPPORTED) {
+    return {
+      colorClass: "amber",
+      label: "Unsupported site",
+      heading: "This site can't be converted",
+      body: "X/Twitter, Instagram, Facebook, and TikTok require a login to read and can't be fetched. Try a direct article link instead.",
+      action: "Try a different URL",
+      retry: false,
+    };
+  }
   if (
     reason === ErrorCodes.FETCH_BAD_URL ||
     reason === ErrorCodes.FETCH_PAYWALLED ||

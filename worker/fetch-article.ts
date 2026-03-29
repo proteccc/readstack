@@ -18,6 +18,20 @@ import { ErrorCodes } from "./error-codes";
 const REPO_ROOT = path.resolve(__dirname, "..");
 const ARTICLES_DIR = path.join(REPO_ROOT, "articles");
 
+// Domains that require JS rendering or a login session and will never produce
+// a readable article via server-side fetch.
+const UNSUPPORTED_DOMAINS = [
+  "x.com",
+  "twitter.com",
+  "instagram.com",
+  "facebook.com",
+  "tiktok.com",
+];
+
+// Minimum extracted text length (characters) to consider an article valid.
+// Catches pages that returned 200 but had no real content (login walls, SPAs).
+const MIN_CONTENT_LENGTH = 200;
+
 export interface FetchedArticle {
   htmlPath: string;
   title: string;
@@ -30,6 +44,17 @@ export interface FetchedArticle {
  * writes a clean HTML file to disk, and returns its path and title.
  */
 export async function fetchArticle(url: string): Promise<FetchedArticle> {
+  // Reject known-unsupported domains before making any network request.
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    if (UNSUPPORTED_DOMAINS.includes(hostname)) {
+      throw new Error(ErrorCodes.FETCH_UNSUPPORTED);
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message === ErrorCodes.FETCH_UNSUPPORTED) throw err;
+    throw new Error(ErrorCodes.FETCH_BAD_URL);
+  }
+
   let response: Response;
   try {
     response = await fetch(url, {
@@ -61,6 +86,13 @@ export async function fetchArticle(url: string): Promise<FetchedArticle> {
   const article = reader.parse();
 
   if (!article) {
+    throw new Error(ErrorCodes.FETCH_ERROR);
+  }
+
+  // Guard against pages that returned 200 but yielded no real content
+  // (JS-rendered SPAs, login redirects, etc).
+  const textLength = article.content?.replace(/<[^>]+>/g, "").trim().length ?? 0;
+  if (textLength < MIN_CONTENT_LENGTH) {
     throw new Error(ErrorCodes.FETCH_ERROR);
   }
 

@@ -8,10 +8,11 @@
 
 export const ErrorCodes = {
   // Article fetch failures
-  FETCH_BAD_URL:   "FETCH_BAD_URL",   // 404 or invalid URL
-  FETCH_PAYWALLED: "FETCH_PAYWALLED", // 402 — article behind a paywall
-  FETCH_BLOCKED:   "FETCH_BLOCKED",   // 403/429 — site is blocking the request
-  FETCH_ERROR:     "FETCH_ERROR",     // any other fetch failure
+  FETCH_BAD_URL:      "FETCH_BAD_URL",      // 404 or invalid URL
+  FETCH_PAYWALLED:    "FETCH_PAYWALLED",    // 402 — article behind a paywall
+  FETCH_BLOCKED:      "FETCH_BLOCKED",      // 403/429 — site is blocking the request
+  FETCH_UNSUPPORTED:  "FETCH_UNSUPPORTED",  // domain known to not work (e.g. X/Twitter)
+  FETCH_ERROR:        "FETCH_ERROR",        // any other fetch failure
 
   // EPUB conversion failure
   CONVERT_ERROR: "CONVERT_ERROR",
