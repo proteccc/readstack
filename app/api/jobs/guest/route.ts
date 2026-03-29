@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
-// In-memory IP rate limiter: 10 sends per hour per IP.
+// In-memory rate limiter: 10 sends per hour, keyed by both IP and Kindle email.
+//
+// IP extraction: we take the RIGHTMOST value from X-Forwarded-For, which is
+// appended by the last trusted proxy (Railway) and cannot be forged by the
+// client. Taking the leftmost value is a common mistake that allows IP spoofing.
+//
+// Dual-key limiting: rate limiting by IP alone can be bypassed by rotating
+// IPs. Keying on the Kindle email as well means an attacker would need to
+// rotate both, and each Kindle address is still hard-capped.
 //
 // Limitations (known, acceptable for now):
 //   - Resets whenever the web process restarts.
@@ -9,13 +17,13 @@ import { db } from "@/lib/db";
 //   - For a more robust solution, move counters into the database or Redis.
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_PER_WINDOW = 10;
-const ipCounters = new Map<string, { count: number; resetAt: number }>();
+const counters = new Map<string, { count: number; resetAt: number }>();
 
-function isRateLimited(ip: string): boolean {
+function isRateLimited(key: string): boolean {
   const now = Date.now();
-  const entry = ipCounters.get(ip);
+  const entry = counters.get(key);
   if (!entry || now > entry.resetAt) {
-    ipCounters.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    counters.set(key, { count: 1, resetAt: now + WINDOW_MS });
     return false;
   }
   if (entry.count >= MAX_PER_WINDOW) return true;
@@ -23,9 +31,17 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
+// Extract the real client IP from X-Forwarded-For.
+// Takes the rightmost entry (appended by Railway's proxy) to prevent spoofing.
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (!forwarded) return "unknown";
+  const ips = forwarded.split(",").map((s) => s.trim()).filter(Boolean);
+  return ips[ips.length - 1] ?? "unknown";
+}
+
 export async function POST(request: NextRequest) {
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = getClientIp(request);
 
   if (isRateLimited(ip)) {
     return NextResponse.json(
@@ -58,6 +74,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { ok: false, message: "A valid @kindle.com email address is required." },
       { status: 400 }
+    );
+  }
+
+  // Secondary rate limit keyed on Kindle email — caps abuse even if IP is rotated.
+  if (isRateLimited(`email:${kindleEmail.toLowerCase()}`)) {
+    return NextResponse.json(
+      { ok: false, message: "Too many requests. Try again in an hour." },
+      { status: 429 }
     );
   }
 

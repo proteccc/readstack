@@ -28,6 +28,25 @@ const UNSUPPORTED_DOMAINS = [
   "tiktok.com",
 ];
 
+// Private, loopback, and cloud-metadata IP ranges that must never be fetched.
+// Prevents SSRF attacks targeting internal network services or cloud metadata
+// endpoints (e.g. 169.254.169.254 on AWS/GCP/Railway leaks IAM credentials).
+const BLOCKED_IP_PATTERNS = [
+  /^127\./,                              // IPv4 loopback
+  /^0\./,                                // 0.0.0.0/8
+  /^10\./,                               // RFC-1918 private
+  /^172\.(1[6-9]|2\d|3[01])\./,         // RFC-1918 private
+  /^192\.168\./,                         // RFC-1918 private
+  /^169\.254\./,                         // Link-local / cloud metadata
+  /^::1$/,                               // IPv6 loopback
+  /^fc00:/i,                             // IPv6 unique local
+  /^fe80:/i,                             // IPv6 link-local
+];
+
+function isPrivateIp(hostname: string): boolean {
+  return BLOCKED_IP_PATTERNS.some((pattern) => pattern.test(hostname));
+}
+
 // Minimum extracted text length (characters) to consider an article valid.
 // Catches pages that returned 200 but had no real content (login walls, SPAs).
 const MIN_CONTENT_LENGTH = 200;
@@ -44,14 +63,21 @@ export interface FetchedArticle {
  * writes a clean HTML file to disk, and returns its path and title.
  */
 export async function fetchArticle(url: string): Promise<FetchedArticle> {
-  // Reject known-unsupported domains before making any network request.
+  // Reject known-unsupported domains and private/internal IPs before fetching.
   try {
-    const hostname = new URL(url).hostname.replace(/^www\./, "");
-    if (UNSUPPORTED_DOMAINS.includes(hostname)) {
+    const { hostname } = new URL(url);
+    const bare = hostname.replace(/^www\./, "");
+    if (UNSUPPORTED_DOMAINS.includes(bare)) {
       throw new Error(ErrorCodes.FETCH_UNSUPPORTED);
     }
+    if (isPrivateIp(hostname)) {
+      throw new Error(ErrorCodes.FETCH_BLOCKED);
+    }
   } catch (err) {
-    if (err instanceof Error && err.message === ErrorCodes.FETCH_UNSUPPORTED) throw err;
+    if (err instanceof Error && (
+      err.message === ErrorCodes.FETCH_UNSUPPORTED ||
+      err.message === ErrorCodes.FETCH_BLOCKED
+    )) throw err;
     throw new Error(ErrorCodes.FETCH_BAD_URL);
   }
 
