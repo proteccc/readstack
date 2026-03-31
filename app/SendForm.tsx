@@ -254,8 +254,7 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
           <div className="nudge-box">
             <strong>Never set up again</strong>
             <p>
-              Save your Kindle connection and send history across all your
-              devices.
+              Save your Kindle connection and send history across devices.
             </p>
             <Link href="/login">
               <button className="btn-cta">Create account →</button>
@@ -494,23 +493,9 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
         >
           Any Substack post,<br />on your Kindle.
         </h1>
-        <p style={{ margin: "0 0 12px", color: "var(--muted)", fontSize: "1rem" }}>
-          Paste a URL. We&apos;ll convert it and send it in seconds.
+        <p style={{ margin: 0, color: "var(--muted)", fontSize: "1rem" }}>
+          Paste a URL. We&apos;ll convert and send it in seconds.
         </p>
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6 }}>
-          {["fast", "easy", "free", "open source"].map((tag) => (
-            <span key={tag} style={{
-              fontSize: "0.75rem",
-              padding: "3px 10px",
-              borderRadius: 999,
-              border: "1px solid var(--line)",
-              color: "var(--muted)",
-              background: "rgba(255,255,255,0.45)",
-            }}>
-              {tag}
-            </span>
-          ))}
-        </div>
       </div>
 
     <div className="send-card">
@@ -549,7 +534,7 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
 
       {!connected && (
         <p className="send-helper">
-          Tapping send will walk you through a one-time 2-minute setup.
+          Tap send to walk through one-time 2-minute setup.
         </p>
       )}
 
@@ -585,7 +570,7 @@ export function SendForm({ serverKindleEmail, recentJobs = [], isSignedIn = fals
         <div className="nudge-box" style={{ marginTop: 4 }}>
           <strong>Never set up again</strong>
           <p>
-            Save your Kindle connection and send history across all your devices.
+            Save your Kindle connection and send history across devices.
           </p>
           <div style={{ display: "flex", gap: 10 }}>
             <Link href="/login" style={{ flex: 1 }}>
