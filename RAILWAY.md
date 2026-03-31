@@ -63,12 +63,18 @@ EPUB_GENERATOR=node
 POLL_INTERVAL_MS=5000
 ```
 
-### 5. Set the public domain
+### 5. Enable Row Level Security
+
+In your Supabase project, go to the **SQL Editor** and run the contents of
+[`prisma/enable-rls.sql`](prisma/enable-rls.sql). This prevents direct access
+to your data via Supabase's public REST API. Your app is unaffected.
+
+### 6. Set the public domain
 
 In the web service settings, generate a Railway domain (e.g.
 `readstack-production.up.railway.app`) or attach a custom domain.
 
-### 6. Update Supabase auth callback URL
+### 7. Update Supabase auth callback URL
 
 In your Supabase dashboard under **Authentication → URL Configuration**:
 - Add your Railway domain to **Redirect URLs**:
