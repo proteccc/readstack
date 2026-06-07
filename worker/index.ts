@@ -1,6 +1,7 @@
 import { runNextJob, recoverStaleJobs } from "./run-job";
 
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS ?? "5000", 10);
+const MAX_IDLE_MS = parseInt(process.env.MAX_IDLE_MS ?? "60000", 10);
 
 let running = true;
 
@@ -18,17 +19,20 @@ async function main() {
 
   await recoverStaleJobs();
 
+  let idleDelay = POLL_INTERVAL_MS;
+
   while (running) {
     try {
       const ran = await runNextJob();
       if (!ran) {
-        // Nothing queued — wait before polling again.
-        await sleep(POLL_INTERVAL_MS);
+        await sleep(idleDelay);
+        idleDelay = Math.min(idleDelay * 2, MAX_IDLE_MS);
+      } else {
+        idleDelay = POLL_INTERVAL_MS; // reset on activity
       }
-      // If a job ran, immediately poll again in case more are queued.
     } catch (err) {
       console.error("Unexpected error in poll loop:", err);
-      await sleep(POLL_INTERVAL_MS);
+      await sleep(idleDelay);
     }
   }
 
